@@ -14,7 +14,7 @@ pacman::p_load(
 option_list = list(
   make_option(
     c("-t", "--tree"),
-    help = "Required: input nhx tree",
+    help = "Required: input tree - auto detect extension.",
     action = "store",
     type = "character",
     default = NA
@@ -94,6 +94,28 @@ parser = OptionParser(
   usage = "treeme.r -t {tree} -o {pdf} -c {file} -m {meta} -l {variable} -p {variable} -g {title} -s {size}"
 )
 
+tryCatch(
+  expr = {
+    arguments = parse_args(
+      object = parser,
+      positional_arguments = TRUE
+    )$options
+  },
+  finally = {
+    if (any(is.na(arguments))) {
+      print_help(parser)
+      cat("\n")
+      message = c(
+        "Missing arguments:",
+        paste0("--", names(which(is.na(arguments))))
+      )
+      logger(message, "critical", TRUE)
+      cat("\n")
+      quit()
+    }
+  }
+)
+
 ###############################
 ########## Functions ##########
 ###############################
@@ -121,6 +143,24 @@ logger = function(text, level, simple = FALSE) {
     cat(levels[level], time, " | ", toupper(level), " | ", text, off)
   } else {
     cat(levels[level], toupper(level), " | ", text, off)
+  }
+}
+
+read_tree_detect = function(infile) {
+  ext = strsplit(infile, ".", fixed = T)[[1]][-1]
+  # newick
+  if (ext == "nwk" | ext == "newick") {
+    return(read.newick(infile))
+  }
+  if (ext == "nexus") {
+    return(read.nexus(infile))
+  }
+  if (ext == "nhx" | ext == "beast") {
+    return(read.beast(infile))
+  }
+  if (ext == "json") {
+    logger("Reading in nextstrain json, this can take a while!", "warning")
+    return(read.nextstrain.json())
   }
 }
 
@@ -168,8 +208,8 @@ check_var_in_meta = function(metafile, variable) {
   }
 }
 
-set_device = function() {
-  ext = strsplit(arguments$outfile, ".", fixed = T)[[1]][-1]
+set_device = function(outfile) {
+  ext = strsplit(outfile, ".", fixed = T)[[1]][-1]
   if (ext == "pdf") {
     device = "cairo_pdf"
   }
@@ -293,38 +333,23 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
 ############# Input checks ##############
 #########################################
 
-tryCatch(
-  expr = {
-    arguments = parse_args(
-      object = parser,
-      positional_arguments = TRUE
-    )$options
-  },
-  finally = {
-    if (any(is.na(arguments))) {
-      print_help(parser)
-      cat("\n")
-      message = c(
-        "Missing arguments:",
-        paste0("--", names(which(is.na(arguments))))
-      )
-      logger(message, "critical", TRUE)
-      cat("\n")
-      quit()
-    }
-  }
-)
-
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
-clades = reader(arguments$clades, "tsv")
-colors = reader(arguments$colors)
-shapes = reader(arguments$shapes)
-names(shapes$shapes_type) = shapes$shape_cats
+
+if (arguments$clades) {
+  clades = reader(arguments$clades, "tsv")
+}
+if (arguments$colors) {
+  colors = reader(arguments$colors)
+}
+if (arguments$shapes) {
+  shapes = reader(arguments$shapes)
+  names(shapes$shapes_type) = shapes$shape_cats
+}
 
 check_var_in_meta(metadata, arguments$colorTaxa)
 check_var_in_meta(metadata, arguments$tipPoint)
-check_taxa_names(tree@phylo$tip.label, meta[, "strain"])
+check_taxa_names(tree@phylo$tip.label, meta[, 1])
 logger("~~~All Checks Okay - Plotting tree~~~", "info")
 
 ##############################################
@@ -342,9 +367,9 @@ tipLabSize = calc_text_size(
 treeplot = ggtree(tree) %<+%
   metadata +
   geom_tiplab(
+    aes(color = !!sym(arguments$colorTaxa)),
     geom = "text",
     size = tipLabSize,
-    aes(color = !!sym(arguments$colorTaxa)),
     key_glyph = rectangle_key_glyph(
       fill = color,
       padding = margin(0, 0, 0, 0),
@@ -392,6 +417,7 @@ treeplot = ggtree(tree) %<+%
       )
     )
   ) +
+
   guides(
     color = guide_legend(
       override.aes = list(
@@ -442,7 +468,7 @@ if (arguments$clades) {
 ggsave(
   filename = arguments$output,
   plot = treeplot,
-  device = set_device(),
+  device = set_device(arguments$outfile),
   width = output_size[1],
   height = output_size[2],
   units = "mm"
