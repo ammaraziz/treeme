@@ -14,69 +14,69 @@ pacman::p_load(
 option_list = list(
   make_option(
     c("-t", "--tree"),
-    help = "input nhx tree",
+    help = "Required: input nhx tree",
+    action = "store",
+    type = "character",
+    default = NA
+  ),
+  make_option(
+    c("-m", "--meta"),
+    help = "Required: tsv file containing metafile.",
     action = "store",
     type = "character",
     default = NA
   ),
   make_option(
     c("-o", "--output"),
-    help = "output name - must end in pdf or svg",
+    help = "Required: output name - must end in pdf or svg",
     action = "store",
     type = "character",
     default = NA
   ),
   make_option(
-    c("-c", "--clades"),
+    c("-c", "--clades-file"),
     help = "clade(str) and node number in tsv format",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("-m", "--meta"),
-    help = "tsv file containing meta data",
-    action = "store",
-    type = "character",
-    default = NA
-  ),
-  make_option(
-    c("--colors"),
-    help = "TSV file - 'category\tcolor' for coloring ",
+    c("--colors-file"),
+    help = "TSV file - 'category\tcolor' for coloring taxa.",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--shapes"),
-    help = "TSV file - 'category\tcolor' for tip point shapes ",
+    c("-l", "--color-taxa"),
+    help = "Variable inf ile to control the color of taxa labels.",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("-l", "--colorTaxa"),
-    help = "which variable (in meta file) to color taxa labels",
+    c("--shapes-file"),
+    help = "TSV file - See below for information",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("-p", "--tipPoint"),
-    help = "which variable (in meta file) to color/shape tip points",
+    c("-p", "--tip-point"),
+    help = "Variable in file to control the tip points shape and color",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("-g", "--title"),
+    c("--title"),
     help = "The title of the final output",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("-s", "--paperSize"),
+    c("--paper-size"),
     help = "output size - options: A3p, A3l, A4l, [A4p] - p/l is the orientation",
     action = "store",
     type = "character",
@@ -85,7 +85,11 @@ option_list = list(
 )
 
 parser = OptionParser(
-  # epilogue = "Epilogue goes here",
+  epilogue = c(
+    "Metafile must be a tab separated file, with the first column containing the sample id matching taxa labels on tree.",
+    "All subsequent columns are optional, any extra columns required must match --colors-file and --tip-point inputs.",
+    "--shapes-file enables control of the tippoint shapes and colors."
+  ),
   option_list = option_list,
   usage = "treeme.r -t {tree} -o {pdf} -c {file} -m {meta} -l {variable} -p {variable} -g {title} -s {size}"
 )
@@ -94,7 +98,7 @@ parser = OptionParser(
 ########## Functions ##########
 ###############################
 
-logger = function(text, level) {
+logger = function(text, level, simple = FALSE) {
   time = format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   off = "\033[0m"
   codes = c(
@@ -113,7 +117,11 @@ logger = function(text, level) {
     warning = codes[["yellow"]],
     critical = codes[["red"]]
   )
-  cat(levels[level], time, " | ", toupper(level), " | ", text, off)
+  if (!simple) {
+    cat(levels[level], time, " | ", toupper(level), " | ", text, off)
+  } else {
+    cat(levels[level], toupper(level), " | ", text, off)
+  }
 }
 
 reader = function(infile, type) {
@@ -138,7 +146,7 @@ reader = function(infile, type) {
     },
     error = function(e) {
       logger(
-        text = paste0("Unable to read infile: ", infile),
+        text = paste0("Unable to read infile - unknown file type: ", infile),
         level = "critical"
       )
       quit()
@@ -154,7 +162,7 @@ check_var_in_meta = function(metafile, variable) {
         variable,
         "' does not exist in metafile. Check inputs."
       ),
-      warning = "warning"
+      level = "warning"
     )
     quit()
   }
@@ -171,30 +179,29 @@ set_device = function() {
   return(device)
 }
 
-tryCatch(
-  expr = {
-    arguments = parse_args(
-      object = parser,
-      positional_arguments = TRUE
-    )$options
-  },
-  finally = {
-    if (any(is.na(arguments))) {
-      print_help(parser)
-      cat("Missing arguments:", paste(names(which(is.na(arguments)))))
-      quit()
-    }
+get_paper_size = function(size_argument) {
+  paperSizes = list(
+    "A2p" = c(297 * 2, 420 * 2),
+    "A2l" = c(420 * 2, 297 * 2),
+    "A3p" = c(297, 420),
+    "A3l" = c(420, 297),
+    "A4p" = c(210, 297),
+    "A4l" = c(297, 210)
+  )
+  if (!any(size_argument %in% names(paperSizes))) {
+    stop(red("Paper size unknown. Options:  A3p A3l A4p A4l"))
   }
-)
-
-###############################################
-########### Functions for Tree ################
-###############################################
+  return(paperSizes[[size_argument]])
+}
 
 tree_title = function(title) {
   today = format(Sys.time(), format = "%d %b %Y")
   out = paste0(as.character(title), "\n", today)
 }
+
+###############################################
+########### Functions for Tree ################
+###############################################
 
 calc_text_size = function(height, lines, buffer) {
   max_line_height = (height) / lines # mm
@@ -282,34 +289,41 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
   )
 }
 
-get_paper_size = function(size_argument) {
-  paperSizes = list(
-    "A2p" = c(297 * 2, 420 * 2),
-    "A2l" = c(420 * 2, 297 * 2),
-    "A3p" = c(297, 420),
-    "A3l" = c(420, 297),
-    "A4p" = c(210, 297),
-    "A4l" = c(297, 210)
-  )
-  if (!any(size_argument %in% names(paperSizes))) {
-    stop(red("Paper size unknown. Options:  A3p A3l A4p A4l"))
-  }
-  return(paperSizes[[size_argument]])
-}
-
 #########################################
 ############# Input checks ##############
 #########################################
 
+tryCatch(
+  expr = {
+    arguments = parse_args(
+      object = parser,
+      positional_arguments = TRUE
+    )$options
+  },
+  finally = {
+    if (any(is.na(arguments))) {
+      print_help(parser)
+      cat("\n")
+      message = c(
+        "Missing arguments:",
+        paste0("--", names(which(is.na(arguments))))
+      )
+      logger(message, "critical", TRUE)
+      cat("\n")
+      quit()
+    }
+  }
+)
+
 tree = reader(arguments$tree, "tree")
-meta = reader(arguments$meta, "tsv")
+metadata = reader(arguments$meta, "tsv")
 clades = reader(arguments$clades, "tsv")
-cols = reader(arguments$colors)
+colors = reader(arguments$colors)
 shapes = reader(arguments$shapes)
 names(shapes$shapes_type) = shapes$shape_cats
 
-check_var_in_meta(meta, arguments$colorTaxa)
-check_var_in_meta(meta, arguments$tipPoint)
+check_var_in_meta(metadata, arguments$colorTaxa)
+check_var_in_meta(metadata, arguments$tipPoint)
 check_taxa_names(tree@phylo$tip.label, meta[, "strain"])
 logger("~~~All Checks Okay - Plotting tree~~~", "info")
 
@@ -326,7 +340,7 @@ tipLabSize = calc_text_size(
 )
 
 treeplot = ggtree(tree) %<+%
-  meta +
+  metadata +
   geom_tiplab(
     geom = "text",
     size = tipLabSize,
@@ -358,15 +372,15 @@ treeplot = ggtree(tree) %<+%
 
   scale_fill_manual(
     arguments$tipPoint,
-    values = shapes_file$shape_colors,
-    limits = shapes_file$shape_cats,
+    values = shapes$colors,
+    limits = shapes$category,
     na.value = "#000000"
   ) +
 
   scale_shape_manual(
     "Legend",
-    values = shapes_file$shapes_type,
-    breaks = shapes_file$shapes_type
+    values = shapes$shape,
+    breaks = shapes$shape
   ) +
 
   guides(
