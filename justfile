@@ -1,6 +1,6 @@
 # Test treeme.r CLI tool
 treeme-test:
-    treeme.r -t test-data/test.nwk -o output.pdf -m test-data/metadata.tsv
+    treeme.r -t test-data/test.nwk -o test-data/output.pdf -m test-data/metadata.tsv
 
     # if test -f output.pdf; then
     #     echo "PASS: PDF created successfully"

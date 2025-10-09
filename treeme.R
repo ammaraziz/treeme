@@ -37,7 +37,7 @@ logger = function(text, level, simple = FALSE) {
   if (!simple) {
     cat(levels[level], time, "|", toupper(level), "|", text, off)
   } else {
-    cat(levels[level], toupper(level), "|", text, off)
+    cat(levels[level], text, off)
   }
 }
 
@@ -87,7 +87,8 @@ reader = function(infile, type) {
         text = paste0(
           "Unable to read infile - unknown file type: ",
           infile,
-          "\n Printing error: ",
+          "\n",
+          "\t",
           e
         ),
         level = "critical"
@@ -101,25 +102,25 @@ check_var_in_meta = function(metafile, variable) {
   if (!(variable %in% names(metafile))) {
     logger(
       text = paste0(
-        "Color column'",
+        "Color column '",
         variable,
         "' does not exist in metafile. Check inputs."
       ),
-      level = "warning"
+      level = "critical"
     )
     quit()
   }
 }
 
 set_device = function(outfile) {
+  print(outfile)
   ext = strsplit(outfile, ".", fixed = T)[[1]][-1]
   if (ext == "pdf") {
-    device = "cairo_pdf"
+    return(cairo_pdf)
   }
   if (ext == "svg") {
-    device = "svg"
+    return("svg")
   }
-  return(device)
 }
 
 get_paper_size = function(size) {
@@ -289,6 +290,80 @@ print_inputs = function(arguments) {
   }
 }
 
+builder_tiplab = function(color_var, size) {
+  logger("Adding geom_tiplab", "info")
+
+  if (!check_empty(color_var)) {
+    geom_tiplab(
+      aes(color = !!sym(color_var)),
+      geom = "text",
+      size = size,
+      key_glyph = rectangle_key_glyph(
+        fill = color,
+        padding = margin(0, 0, 0, 0),
+        color = "black",
+        linetype = 3
+      ),
+      offset = 0.00009,
+      family = "Arial"
+    )
+  } else {
+    geom_tiplab(
+      geom = "text",
+      size = size,
+      key_glyph = rectangle_key_glyph(
+        padding = margin(0, 0, 0, 0),
+        color = "black",
+        linetype = 3
+      ),
+      offset = 0.00009,
+      family = "Arial"
+    )
+  }
+}
+
+builder_tippoint = function(meta, tip_var, ushape_df) {
+  logger("Adding geom_tippoint", "info")
+
+  if (check_empty(tip_var)) {
+    check_var_in_meta(meta, tip_var)
+    geom_tippoint(size = tipLabSize, aes(fill = !!sym(tip_var), shape = !!sym(tip_var))) +
+
+      scale_fill_manual(
+        tip_var,
+        values = ushape_df$colors,
+        limits = ushape_df$category,
+        na.value = "#000000"
+      ) +
+
+      scale_shape_manual(
+        "Legend",
+        values = ushape_df$shape,
+        breaks = ushape_df$shape
+      ) +
+
+      guides(
+        fill = guide_legend(
+          override.aes = list(
+            size = tipLabSize * 1.5,
+            label = "",
+            shape = ushape_df$shapes_type
+          )
+        )
+      )
+  } else {
+    geom_tippoint(size = tipLabSize)
+  }
+}
+
+builder_tiplab_colors = function(var) {
+  scale_color_manual(
+    color_var,
+    limits = ucolors$category,
+    values = ucolors$color,
+    na.value = "#000000"
+  )
+}
 
 #########################################
 ############# CLI Parser ################
@@ -317,13 +392,6 @@ option_list = list(
     default = NA
   ),
   make_option(
-    c("--clades-file"),
-    help = "TSV - 'clade\tnode number' - used for vertical lines on a tree.",
-    action = "store",
-    type = "character",
-    default = ""
-  ),
-  make_option(
     c("--colors-file"),
     help = "TSV file - 'category\tcolor' for coloring taxa names.",
     action = "store",
@@ -331,8 +399,15 @@ option_list = list(
     default = ""
   ),
   make_option(
-    c("--color-var"),
-    help = "Variable in metafile to control the color of taxa labels. Ensure all categories are in taxa/metafile.",
+    c("--color-by-var"),
+    help = "Variable in metafile to control the color of taxa labels. Ensure all categories are in taxa/metafile. If not provided, tiplabs are black.",
+    action = "store",
+    type = "character",
+    default = ""
+  ),
+  make_option(
+    c("--clades-file"),
+    help = "TSV - 'clade\tnode number' - used for vertical lines on a tree.",
     action = "store",
     type = "character",
     default = ""
@@ -406,88 +481,49 @@ tryCatch(
 ############# Input checks ##############
 #########################################
 print_inputs((arguments))
+
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
-if (check_empty(arguments$clades)) {
-  clades = reader(arguments$clades, "tsv")
+if (check_empty(arguments$clade_var)) {
+  clades = reader(arguments$clade_var, "tsv")
 }
+
 if (check_empty(arguments$`colors-file`)) {
-  ucolors = reader(arguments$`colors-file`)
+  if (check_empty(arguments$`color-by-var`)) {
+    ucolors = reader(arguments$`colors-file`, "tsv")
+  } else {
+    logger("Both --colors-file and --colors-by-var needed.", "critical")
+    quit()
+  }
 }
 if (check_empty(arguments$`shapes-file`)) {
   ushapes = reader(arguments$`shapes-file`)
   names(ushapes$shapes_type) = ushapes$`shape-cats`
-}
-if (!check_empty(arguments$colorTaxa)) {
-  arguments$colorTaxa = "black"
-}
-if (check_empty(arguments$`shape-var`)) {
-  check_var_in_meta(metadata, arguments$tipPoint)
 }
 
 check_taxa_names(tree, metadata[, 1])
 output_size = get_paper_size(arguments$`paper-size`)
 tipLabSize = calc_text_size(height = output_size[[1]], phylo = tree)
 
-logger("----- All Checks Okay - Plotting tree -----", "info")
+logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 
 ##############################################
 ################ Tree plotting ###############
 ##############################################
 
-plot = ggtree(tree) %<+%
+tplot = ggtree(tree) %<+%
   metadata +
-  geom_tiplab(
-    aes(color = !!sym(arguments$colorTaxa)),
-    geom = "text",
-    size = tipLabSize,
-    key_glyph = rectangle_key_glyph(
-      fill = color,
-      padding = margin(0, 0, 0, 0),
-      color = "black",
-      linetype = 3
-    ),
-    offset = 0.00009,
-    family = "Arial"
+
+  builder_tiplab(
+    color_var = arguments$`color-by-var`,
+    size = tipLabSize
   ) +
 
-  geom_tippoint(
-    size = tipLabSize,
-    aes(
-      fill = !!sym(arguments$`shape-var`),
-      shape = !!sym(arguments$`shape-var`)
-    )
-  ) +
-
-  scale_color_manual(
-    arguments$colorTaxa,
-    limits = ucolors$category,
-    values = ucolors$color,
-    na.value = "#000000"
-  ) +
-
-  scale_fill_manual(
-    arguments$tipPoint,
-    values = ushapes$colors,
-    limits = ushapes$category,
-    na.value = "#000000"
-  ) +
-
-  scale_shape_manual(
-    "Legend",
-    values = shapes$shape,
-    breaks = shapes$shape
-  ) +
-
-  guides(
-    fill = guide_legend(
-      override.aes = list(
-        size = tipLabSize * 1.5,
-        label = "",
-        shape = shapes_file$shapes_type
-      )
-    )
+  builder_tippoint(
+    meta = metadata,
+    tip_var = arguments$`shape-var`,
+    ushape_df = ushapes
   ) +
 
   guides(
@@ -515,32 +551,32 @@ plot = ggtree(tree) %<+%
     plot.subtitle = element_text(hjust = 0.02, vjust = -12, size = 20)
   )
 
-# mutations on branches
-nudge = ggplot_build(treeplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
+# # mutations on branches
+# nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
 
-treeplot = treeplot +
-  geom_text(
-    aes(x = branch, label = aa_muts),
-    size = tipLabSize - 0.5,
-    nudge_y = nudge
-  )
+# tplot = tplot +
+#   geom_text(
+#     aes(x = branch, label = aa_muts),
+#     size = tipLabSize - 0.5,
+#     nudge_y = nudge
+#   )
 
 # Fix tip label clipping
-plot_dim_x = ggplot_build(treeplot)$layout$panel_scales_x[[1]]$range$range[2]
+plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
 
-treeplot = treeplot +
+tplot = tplot +
   coord_cartesian(clip = "off", expand = FALSE) +
   xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
 
 # add clades
-if (arguments$clades) {
+if (check_empty(arguments$`clades-file`)) {
   treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
 }
 
 ggsave(
   filename = arguments$output,
-  plot = treeplot,
-  device = set_device(arguments$outfile),
+  plot = tplot,
+  device = set_device(arguments$output),
   width = output_size[1],
   height = output_size[2],
   units = "mm"
