@@ -65,7 +65,10 @@ reader = function(infile, type) {
     expr = {
       if (type == "tree") {
         t = read_tree_auto(infile)
-        logger("Tree file successfully read in.", "info")
+        logger(
+          paste0(basename(infile), " successfully read in."),
+          "info"
+        )
         return(t)
       }
       if (type == "tsv") {
@@ -75,7 +78,7 @@ reader = function(infile, type) {
           na.strings = "",
           stringsAsFactors = F
         )
-        logger(paste0(infile, " successfully read in."), "info")
+        logger(paste0(basename(infile), " successfully read in."), "info")
         return(m)
       }
     },
@@ -119,8 +122,8 @@ set_device = function(outfile) {
   return(device)
 }
 
-get_paper_size = function(size_argument) {
-  paperSizes = list(
+get_paper_size = function(size) {
+  paper = list(
     "A2p" = c(297 * 2, 420 * 2),
     "A2l" = c(420 * 2, 297 * 2),
     "A3p" = c(297, 420),
@@ -128,10 +131,14 @@ get_paper_size = function(size_argument) {
     "A4p" = c(210, 297),
     "A4l" = c(297, 210)
   )
-  if (!any(size_argument %in% names(paperSizes))) {
-    stop(red("Paper size unknown. Options:  A3p A3l A4p A4l"))
+  if (!any(size %in% names(paper))) {
+    logger(
+      paste0("Page size of: ", size, " is not accepted. Options: A3p A3l A4p A4l. See help for further info"),
+      "critical"
+    )
+    quit()
   }
-  return(paperSizes[[size_argument]])
+  return(paper[[size]])
 }
 
 tree_title = function(title) {
@@ -143,15 +150,39 @@ tree_title = function(title) {
 ########### Functions for Tree ################
 ###############################################
 
-calc_text_size = function(height, lines, buffer) {
-  max_line_height = (height) / lines # mm
+calc_text_size = function(height, phylo, buffer = 5) {
+  if (class(phylo) == "treedata") {
+    taxa = phylo@phylo$Nnode
+  }
+  if (class(phylo) == "phylo") {
+    taxa = phylo$Nnode
+  } else {
+    logger("Unable to get num of tips in input tree. Check tree type is nwk or nhx", "critical")
+    quit()
+  }
+
+  max_line_height = (height + buffer) / taxa # mm
   return(max_line_height)
 }
 
-check_taxa_names = function(tree_labs, meta_desig) {
-  # tree_labs  :  tree@phylo$tip.label
-  # meta_desig :  meta[, 'designation']
-  mismatch = tree_labs[!tree_labs %in% meta_desig]
+check_taxa_names = function(tree, meta_desig) {
+  # tree - must be of object type X and Y
+  # meta_desig :  vector list, input should be like metadata[, 'designation']
+
+  # via treeio::read.beast or ape::read.nexus
+  if (class(tree) == "treedata") {
+    taxa_labels = tree@phylo$tip.label
+  }
+  # read in via treeio::read.newick, treeio::read.iqtree
+  if (class(tree) == "phylo") {
+    taxa_labels = tree$tiplabs
+  } else {
+    logger("Unable to extract tip labels from input tree. Check tree type is nwk or nhx", "critical")
+    quit()
+  }
+
+  mismatch = taxa_labels[!taxa_labels %in% meta_desig]
+
   if (!length(mismatch)) {
     logger(text = "All tip labels present in metafile", level = "info")
   } else {
@@ -229,15 +260,21 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
   )
 }
 
-check_empty = function(string) {
+check_empty = function(var) {
   # returns FALSE when empty
-  if (is.null(string)) {
+  if (is.null(var)) {
     return(FALSE)
   }
-  if (string == '') {
+  if (var == '') {
     return(FALSE)
-  } else {
+  }
+  if (length(var) > 0 & !is.null(var)) {
     return(TRUE)
+  } else {
+    logger(
+      "What the hell did you pass to? This is a bug, go to github and submit an issue",
+      "critical"
+    )
   }
 }
 
@@ -251,6 +288,7 @@ print_inputs = function(arguments) {
     }
   }
 }
+
 
 #########################################
 ############# CLI Parser ################
@@ -322,7 +360,7 @@ option_list = list(
   ),
   make_option(
     c("--paper-size"),
-    help = "Optional: Output size - options: A3p, A3l, A4l, [A4p] - p/l is the orientation",
+    help = "Optional: Output size - options: A3p, A3l, A4l, [A4p] - p/l is the orientation. [default %default]",
     action = "store",
     type = "character",
     default = "A4p"
@@ -367,45 +405,38 @@ tryCatch(
 #########################################
 ############# Input checks ##############
 #########################################
-print_inputs(arguments)
+print_inputs((arguments))
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
 if (check_empty(arguments$clades)) {
   clades = reader(arguments$clades, "tsv")
 }
-if (check_empty(arguments$colors)) {
-  colors = reader(arguments$colors)
+if (check_empty(arguments$`colors-file`)) {
+  ucolors = reader(arguments$`colors-file`)
 }
-if (check_empty(arguments$shapes)) {
-  shapes = reader(arguments$shapes)
-  names(shapes$shapes_type) = shapes$shape_cats
+if (check_empty(arguments$`shapes-file`)) {
+  ushapes = reader(arguments$`shapes-file`)
+  names(ushapes$shapes_type) = ushapes$`shape-cats`
 }
-if (check_empty(arguments$colorTaxa)) {
-  arguments$colorTaxa = NULL
-} else {
-  check_var_in_meta(metadata, arguments$colorTaxa)
+if (!check_empty(arguments$colorTaxa)) {
+  arguments$colorTaxa = "black"
 }
-if (check_empty(arguments$tipPoint)) {
+if (check_empty(arguments$`shape-var`)) {
   check_var_in_meta(metadata, arguments$tipPoint)
 }
 
-check_taxa_names(tree@phylo$tip.label, meta[, 1])
-logger("~~~All Checks Okay - Plotting tree~~~", "info")
+check_taxa_names(tree, metadata[, 1])
+output_size = get_paper_size(arguments$`paper-size`)
+tipLabSize = calc_text_size(height = output_size[[1]], phylo = tree)
+
+logger("----- All Checks Okay - Plotting tree -----", "info")
 
 ##############################################
 ################ Tree plotting ###############
 ##############################################
 
-output_size = get_paper_size(arguments$paperSize)
-
-tipLabSize = calc_text_size(
-  height = output_size[[1]],
-  lines = tree@phylo$Nnode,
-  buffer = 15
-)
-
-treeplot = ggtree(tree) %<+%
+plot = ggtree(tree) %<+%
   metadata +
   geom_tiplab(
     aes(color = !!sym(arguments$colorTaxa)),
@@ -424,22 +455,22 @@ treeplot = ggtree(tree) %<+%
   geom_tippoint(
     size = tipLabSize,
     aes(
-      fill = !!sym(arguments$tipPoint),
-      shape = !!sym(arguments$tipPoint)
+      fill = !!sym(arguments$`shape-var`),
+      shape = !!sym(arguments$`shape-var`)
     )
   ) +
 
   scale_color_manual(
     arguments$colorTaxa,
-    limits = cols_file$category,
-    values = cols_file$color,
+    limits = ucolors$category,
+    values = ucolors$color,
     na.value = "#000000"
   ) +
 
   scale_fill_manual(
     arguments$tipPoint,
-    values = shapes$colors,
-    limits = shapes$category,
+    values = ushapes$colors,
+    limits = ushapes$category,
     na.value = "#000000"
   ) +
 
