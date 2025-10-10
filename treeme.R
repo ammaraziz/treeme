@@ -15,7 +15,7 @@ pacman::p_load(
 ########## Functions ##########
 ###############################
 
-logger = function(text, level, simple = FALSE) {
+logger = function(text, level = "info", simple = FALSE) {
   time = format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   off = "\033[0m\n"
   codes = c(
@@ -44,6 +44,9 @@ logger = function(text, level, simple = FALSE) {
 read_tree_auto = function(infile) {
   ext = strsplit(infile, ".", fixed = T)[[1]][-1]
   # newick
+  if (length(ext) > 1) {
+    ext = tail(ext, 1)
+  }
   if (ext == "nwk" | ext == "newick") {
     return(read.newick(infile))
   }
@@ -65,10 +68,7 @@ reader = function(infile, type) {
     expr = {
       if (type == "tree") {
         t = read_tree_auto(infile)
-        logger(
-          paste0(basename(infile), " successfully read in."),
-          "info"
-        )
+        logger(paste0(basename(infile), " successfully read in."))
         return(t)
       }
       if (type == "tsv") {
@@ -78,7 +78,7 @@ reader = function(infile, type) {
           na.strings = "",
           stringsAsFactors = F
         )
-        logger(paste0(basename(infile), " successfully read in."), "info")
+        logger(paste0(basename(infile), " successfully read in."))
         return(m)
       }
     },
@@ -123,14 +123,18 @@ set_device = function(outfile) {
   }
 }
 
-get_paper_size = function(size) {
+get_page_size = function(size) {
   paper = list(
-    "A2p" = c(297 * 2, 420 * 2),
-    "A2l" = c(420 * 2, 297 * 2),
+    "A2p" = c(594, 840),
+    "A2l" = c(840, 594),
     "A3p" = c(297, 420),
     "A3l" = c(420, 297),
     "A4p" = c(210, 297),
-    "A4l" = c(297, 210)
+    "A4l" = c(297, 210),
+    "A5p" = c(148, 210),
+    "A5l" = c(210, 148),
+    "A6p" = c(105, 148),
+    "A6l" = c(148, 105)
   )
   if (!any(size %in% names(paper))) {
     logger(
@@ -151,19 +155,51 @@ tree_title = function(title) {
 ########### Functions for Tree ################
 ###############################################
 
-calc_text_size = function(height, phylo, buffer = 5) {
+calc_text_size = function(phylo, page_size, type = "logistic") {
+  # phylo is is the output of func read_tree_auto
+  # type controls how text size is calculated
+  # area - page size aware font scaling
+  # logistic - for scaling font size based on the number of taxa using sigmoid
+  # inkdensity - total ink area of all tip labels constant relative to the usable plotting area
+
   if (class(phylo) == "treedata") {
-    taxa = phylo@phylo$Nnode
+    ntaxa = phylo@phylo$Nnode
   }
   if (class(phylo) == "phylo") {
-    taxa = phylo$Nnode
+    ntaxa = phylo$Nnode
   } else {
     logger("Unable to get num of tips in input tree. Check tree type is nwk or nhx", "critical")
     quit()
   }
+  width = page_size[1]
+  height = page_size[2]
+  min_font = 1
+  max_font = 5
 
-  max_line_height = (height + buffer) / taxa # mm
-  return(max_line_height)
+  if (type == "area") {
+    mid_vir = max_font / 2
+    font_size = min_font + (max_font - min_font) / (1 + exp(0.1 * (mid_vir - ntaxa)))
+  } else if (type == "logistic") {
+    # Kimi K2 hallucination
+    # Heuristic: font size decreases with more labels and increases with page area
+    base_size = 0.5
+    area = width * height
+    font_size = base_size * sqrt(area) / (20 * log(ntaxa + 1))
+    font_size = max(min_font, min(font_size, max_font))
+  } else if (type == "inkdensity") {
+    # Kimi K2 hallucination
+    # Heuristic: scale font size linearly so that the total ink used by all tip labels stays roughly constant.
+    usable_frac = 0.80 # amount of plotting area that is useable - this is about 0.8 assuming plotting with a heatmap
+    usable_area <- usable_frac * width * height
+    char_area <- 0.65 # target aggregate label area (empirical constant 0.35 mm² per character)
+    avg_label_len <- 20 # default average label length in characters
+    font_size <- sqrt(usable_area / (ntaxa * char_area * avg_label_len))
+    font_size <- max(min_font, min(max_font, font_size)) # clamp to readable range
+  } else {
+    logger("Internal bug - report this issue on github", "critical")
+  }
+  logger(paste0("Number of taxa on tree: ", ntaxa, ", using font size: ", font_size))
+  return(font_size)
 }
 
 check_taxa_names = function(tree, meta_desig) {
@@ -185,7 +221,7 @@ check_taxa_names = function(tree, meta_desig) {
   mismatch = taxa_labels[!taxa_labels %in% meta_desig]
 
   if (!length(mismatch)) {
-    logger(text = "All tip labels present in metafile", level = "info")
+    logger(text = "All tip labels present in metafile")
   } else {
     logger(
       text = "The following tip labels not present in metafile:",
@@ -280,7 +316,7 @@ check_empty = function(var) {
 }
 
 print_inputs = function(arguments) {
-  logger("CLI Inputs:", "info", TRUE)
+  logger("CLI Inputs:", simple = TRUE)
   arg_names = names(arguments)
   for (n in seq_along(arg_names)) {
     if (check_empty(arguments[n]) & !(arg_names[n] == "help")) {
@@ -293,6 +329,7 @@ print_inputs = function(arguments) {
 builder_tiplab = function(color_var, size) {
   logger("Adding geom_tiplab", "info")
 
+  offset = 0.01
   if (!check_empty(color_var)) {
     geom_tiplab(
       aes(color = !!sym(color_var)),
@@ -304,7 +341,7 @@ builder_tiplab = function(color_var, size) {
         color = "black",
         linetype = 3
       ),
-      offset = 0.00009,
+      offset = offset,
       family = "Arial"
     )
   } else {
@@ -316,7 +353,7 @@ builder_tiplab = function(color_var, size) {
         color = "black",
         linetype = 3
       ),
-      offset = 0.00009,
+      offset = offset,
       family = "Arial"
     )
   }
@@ -327,7 +364,7 @@ builder_tippoint = function(meta, tip_var, ushape_df) {
 
   if (check_empty(tip_var)) {
     check_var_in_meta(meta, tip_var)
-    geom_tippoint(size = tipLabSize, aes(fill = !!sym(tip_var), shape = !!sym(tip_var))) +
+    geom_tippoint(size = text_size, aes(fill = !!sym(tip_var), shape = !!sym(tip_var)), ) +
 
       scale_fill_manual(
         tip_var,
@@ -345,14 +382,14 @@ builder_tippoint = function(meta, tip_var, ushape_df) {
       guides(
         fill = guide_legend(
           override.aes = list(
-            size = tipLabSize * 1.5,
+            size = text_size * 1.5,
             label = "",
             shape = ushape_df$shapes_type
           )
         )
       )
   } else {
-    geom_tippoint(size = tipLabSize)
+    geom_tippoint(size = text_size)
   }
 }
 
@@ -439,6 +476,13 @@ option_list = list(
     action = "store",
     type = "character",
     default = "A4p"
+  ),
+  make_option(
+    c("--font-size"),
+    help = "Optional: Specify the taxa labels font size. Set to 0 to turn off taxa labels. Treeme will try to auto calculate the best font size for you.",
+    action = "store",
+    type = "numeric",
+    default = NULL
   )
 )
 
@@ -503,8 +547,20 @@ if (check_empty(arguments$`shapes-file`)) {
 }
 
 check_taxa_names(tree, metadata[, 1])
-output_size = get_paper_size(arguments$`paper-size`)
-tipLabSize = calc_text_size(height = output_size[[1]], phylo = tree)
+output_size = get_page_size(arguments$`paper-size`)
+
+# set the tip lab size
+if (check_empty(arguments$`font-size`)) {
+  if (arguments$`font-size` == 0) {
+    taxa_text_size = 0
+  } else {
+    taxa_text_size = arguments$`font-size`
+  }
+} else {
+  taxa_text_size = calc_text_size(phylo = tree, page_size = output_size)
+}
+text_size = calc_text_size(phylo = tree, page_size = output_size)
+
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 
@@ -517,7 +573,7 @@ tplot = ggtree(tree) %<+%
 
   builder_tiplab(
     color_var = arguments$`color-by-var`,
-    size = tipLabSize
+    size = taxa_text_size
   ) +
 
   builder_tippoint(
@@ -529,7 +585,7 @@ tplot = ggtree(tree) %<+%
   guides(
     color = guide_legend(
       override.aes = list(
-        size = tipLabSize * 5,
+        size = text_size * 5,
         label = "\u25A0",
         linetype = 3
       )
@@ -540,7 +596,7 @@ tplot = ggtree(tree) %<+%
 
   theme(
     legend.position = c(0.1, 0.65),
-    legend.key.size = unit(tipLabSize * 2, "mm"),
+    legend.key.size = unit(text_size * 2, "mm"),
     legend.background = element_blank(),
     legend.text = element_text(size = 12),
     legend.title = element_text(size = 15),
@@ -557,7 +613,7 @@ tplot = ggtree(tree) %<+%
 # tplot = tplot +
 #   geom_text(
 #     aes(x = branch, label = aa_muts),
-#     size = tipLabSize - 0.5,
+#     size = text_size - 0.5,
 #     nudge_y = nudge
 #   )
 
