@@ -113,7 +113,6 @@ check_var_in_meta = function(metafile, variable) {
 }
 
 set_device = function(outfile) {
-  print(outfile)
   ext = strsplit(outfile, ".", fixed = T)[[1]][-1]
   if (ext == "pdf") {
     return(cairo_pdf)
@@ -326,37 +325,43 @@ print_inputs = function(arguments) {
   }
 }
 
-builder_tiplab = function(color_var, size) {
+builder_tiplab = function(tplot, color_var, size) {
   logger("Adding geom_tiplab", "info")
 
-  offset = 0.01
-  if (!check_empty(color_var)) {
-    geom_tiplab(
-      aes(color = !!sym(color_var)),
-      geom = "text",
-      size = size,
-      key_glyph = rectangle_key_glyph(
-        fill = color,
-        padding = margin(0, 0, 0, 0),
-        color = "black",
-        linetype = 3
-      ),
-      offset = offset,
-      family = "Arial"
-    )
+  offset = 0.001
+  if (check_empty(color_var)) {
+    tplot = tplot +
+      geom_tiplab(
+        aes(color = !!sym(color_var)),
+        size = size,
+        offset = offset,
+        family = "Arial",
+        key_glyph = rectangle_key_glyph(
+          fill = color,
+          padding = margin(0, 0, 0, 0),
+          color = "black",
+          linetype = 3
+        )
+      ) +
+      scale_color_manual(
+        values = ucolors_maps,
+        na.value = "#000000"
+      )
   } else {
-    geom_tiplab(
-      geom = "text",
-      size = size,
-      key_glyph = rectangle_key_glyph(
-        padding = margin(0, 0, 0, 0),
-        color = "black",
-        linetype = 3
-      ),
-      offset = offset,
-      family = "Arial"
-    )
+    tplot = tplot +
+      geom_tiplab(
+        geom = "text",
+        size = size,
+        offset = offset,
+        family = "Arial",
+        key_glyph = rectangle_key_glyph(
+          padding = margin(0, 0, 0, 0),
+          color = "black",
+          linetype = 3
+        )
+      )
   }
+  return(tplot)
 }
 
 builder_tippoint = function(meta, tip_var, ushape_df) {
@@ -393,15 +398,6 @@ builder_tippoint = function(meta, tip_var, ushape_df) {
   }
 }
 
-builder_tiplab_colors = function(var) {
-  scale_color_manual(
-    color_var,
-    limits = ucolors$category,
-    values = ucolors$color,
-    na.value = "#000000"
-  )
-}
-
 #########################################
 ############# CLI Parser ################
 #########################################
@@ -430,7 +426,7 @@ option_list = list(
   ),
   make_option(
     c("--colors-file"),
-    help = "TSV file - 'category\tcolor' for coloring taxa names.",
+    help = "TSV file - 'category\\tcolor' for coloring taxa names.",
     action = "store",
     type = "character",
     default = ""
@@ -529,21 +525,24 @@ print_inputs((arguments))
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
-if (check_empty(arguments$clade_var)) {
-  clades = reader(arguments$clade_var, "tsv")
-}
 
 if (check_empty(arguments$`colors-file`)) {
   if (check_empty(arguments$`color-by-var`)) {
     ucolors = reader(arguments$`colors-file`, "tsv")
+    ucolors_maps = setNames(ucolors$color, ucolors$category)
   } else {
     logger("Both --colors-file and --colors-by-var needed.", "critical")
     quit()
   }
 }
+
 if (check_empty(arguments$`shapes-file`)) {
   ushapes = reader(arguments$`shapes-file`)
   names(ushapes$shapes_type) = ushapes$`shape-cats`
+}
+
+if (check_empty(arguments$clade_var)) {
+  clades = reader(arguments$clade_var, "tsv")
 }
 
 check_taxa_names(tree, metadata[, 1])
@@ -561,39 +560,39 @@ if (check_empty(arguments$`font-size`)) {
 }
 text_size = calc_text_size(phylo = tree, page_size = output_size)
 
-
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 
 ##############################################
 ################ Tree plotting ###############
 ##############################################
 
-tplot = ggtree(tree) %<+%
-  metadata +
+tplot = ggtree(tree) %<+% metadata
 
-  builder_tiplab(
-    color_var = arguments$`color-by-var`,
-    size = taxa_text_size
-  ) +
+tplot = builder_tiplab(
+  tplot = tplot,
+  color_var = arguments$`color-by-var`,
+  size = taxa_text_size
+)
 
-  builder_tippoint(
-    meta = metadata,
-    tip_var = arguments$`shape-var`,
-    ushape_df = ushapes
-  ) +
+# builder_tippoint(
+#   meta = metadata,
+#   tip_var = arguments$`shape-var`,
+#   ushape_df = ushapes
+# ) +
 
-  guides(
-    color = guide_legend(
-      override.aes = list(
-        size = text_size * 5,
-        label = "\u25A0",
-        linetype = 3
-      )
-    )
-  ) +
+# guides(
+#   color = guide_legend(
+#     override.aes = list(
+#       size = text_size * 5,
+#       label = "\u25A0",
+#       linetype = 3
+#     )
+#   )
+# ) +
 
-  ggtitle(tree_title(arguments$title)) +
+# ggtitle(tree_title(arguments$title))
 
+tplot = tplot +
   theme(
     legend.position = c(0.1, 0.65),
     legend.key.size = unit(text_size * 2, "mm"),
@@ -618,16 +617,16 @@ tplot = ggtree(tree) %<+%
 #   )
 
 # Fix tip label clipping
-plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
+# plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
 
-tplot = tplot +
-  coord_cartesian(clip = "off", expand = FALSE) +
-  xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
+# tplot = tplot +
+#   coord_cartesian(clip = "off", expand = FALSE) +
+#   xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
 
-# add clades
-if (check_empty(arguments$`clades-file`)) {
-  treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
-}
+# # add clades
+# if (check_empty(arguments$`clades-file`)) {
+#   treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
+# }
 
 ggsave(
   filename = arguments$output,
