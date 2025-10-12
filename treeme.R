@@ -414,13 +414,6 @@ option_list = list(
     default = NA
   ),
   make_option(
-    c("-m", "--meta"),
-    help = "Required: tsv file containing metafile.",
-    action = "store",
-    type = "character",
-    default = NA
-  ),
-  make_option(
     c("-o", "--output"),
     help = "Required: output name - must end in pdf or svg",
     action = "store",
@@ -428,32 +421,27 @@ option_list = list(
     default = NA
   ),
   make_option(
+    c("-m", "--meta"),
+    help = "Required: tsv file containing metafile.",
+    action = "store",
+    type = "character",
+    default = NA
+  ),
+  make_option(
+    c("-c", "--color-by"),
+    help = "Column name in metafile to control the color of taxa labels. If not provided, tiplabs are black.",
+    action = "store",
+    type = "character"
+  ),
+  make_option(
+    c("-s", "--shape-by"),
+    help = "Column name in metafile to control the color AND shape of tip points. If not provided, tips are blank (no shape).",
+    action = "store",
+    type = "character"
+  ),
+  make_option(
     c("--clades-file"),
     help = "TSV file - 'clade\\tnode number' - used for vertical bar lines beside tree to identify clades.",
-    action = "store",
-    type = "character"
-  ),
-  make_option(
-    c("-c", "--colors-file"),
-    help = "TSV file - 'category\\tcolor' for coloring taxa names.",
-    action = "store",
-    type = "character"
-  ),
-  make_option(
-    c("-C", "--color-by-var"),
-    help = "Variable in metafile to control the color of taxa labels. Ensure all categories are in taxa/metafile. If not provided, tiplabs are black.",
-    action = "store",
-    type = "character"
-  ),
-  make_option(
-    c("-s", "--shapes-file"),
-    help = "TSV file - See below for information",
-    action = "store",
-    type = "character"
-  ),
-  make_option(
-    c("-S", "--shape-by-var"),
-    help = "Variable in file to control the tip points shape and color. Ensure all categories are in taxa/metafile.",
     action = "store",
     type = "character"
   ),
@@ -481,11 +469,11 @@ option_list = list(
 parser = OptionParser(
   epilogue = c(
     "Metafile must be a tab separated file, with the first column containing the sample id matching taxa labels on tree.",
-    "All subsequent columns are optional, any extra columns required must match --colors-file and --tip-point inputs.",
-    "--shapes-file enables control of the tippoint shapes and colors.",
+    "All subsequent columns are optional - except those specified with --color-by and --shape-by arguments.",
     "\n",
     "Common Issues and solutions:",
-    "\t- Text is squished together; Increase output side from A4 to A3."
+    "\t- Text is squished together; Increase output side from A4 to A3.",
+    "\t- A warning appears about taxa/metafile labels; open the tree file in a text editor and check the label names. These much match exactly, no spaces, no underscores."
   ),
   option_list = option_list,
   usage = "probably out of date: treeme.r -t {tree} -o {pdf} -c {file} -m {meta} -l {variable} -p {variable} -g {title} -s {size}"
