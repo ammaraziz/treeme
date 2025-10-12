@@ -8,7 +8,7 @@ pacman::p_load(
   treeio,
   cowplot,
   dplyr,
-  Cairo
+  Cario
 )
 
 ###############################
