@@ -28,16 +28,16 @@ logger = function(text, level = "info", simple = FALSE) {
     cyan = "\033[0;36m", # Cyan
     white = "\033[0;37m" # White
   )
-
   levels = c(
     info = codes[["blue"]],
     warning = codes[["yellow"]],
     critical = codes[["red"]]
   )
-  if (!simple) {
-    cat(levels[level], time, "|", toupper(level), "|", text, off)
+
+  if (simple) {
+    cat(levels[level], text, off, file = stderr())
   } else {
-    cat(levels[level], text, off)
+    cat(levels[level], time, "|", toupper(level), "|", text, off, file = stderr())
   }
 }
 
@@ -93,7 +93,7 @@ reader = function(infile, type) {
         ),
         level = "critical"
       )
-      quit()
+      quit(status = 1)
     }
   )
 }
@@ -102,13 +102,15 @@ check_var_in_meta = function(metafile, variable) {
   if (!(variable %in% names(metafile))) {
     logger(
       text = paste0(
-        "Color column '",
+        "Column '",
         variable,
         "' does not exist in metafile. Check inputs."
       ),
       level = "critical"
     )
-    quit()
+    quit(status = 1)
+  } else {
+    return(TRUE)
   }
 }
 
@@ -140,7 +142,7 @@ get_page_size = function(size) {
       paste0("Page size of: ", size, " is not accepted. Options: A3p A3l A4p A4l. See help for further info"),
       "critical"
     )
-    quit()
+    quit(status = 1)
   }
   return(paper[[size]])
 }
@@ -168,7 +170,7 @@ calc_text_size = function(phylo, page_size, type = "logistic") {
     ntaxa = phylo$Nnode
   } else {
     logger("Unable to get num of tips in input tree. Check tree type is nwk or nhx", "critical")
-    quit()
+    quit(status = 1)
   }
   width = page_size[1]
   height = page_size[2]
@@ -214,7 +216,7 @@ check_taxa_names = function(tree, meta_desig) {
     taxa_labels = tree$tiplabs
   } else {
     logger("Unable to extract tip labels from input tree. Check tree type is nwk or nhx", "critical")
-    quit()
+    quit(status = 1)
   }
 
   mismatch = taxa_labels[!taxa_labels %in% meta_desig]
@@ -364,24 +366,25 @@ builder_tiplab = function(tplot, color_var, size) {
   return(tplot)
 }
 
-builder_tippoint = function(meta, tip_var, ushape_df) {
+builder_tippoint = function(tplot, tip_var, ushape_df) {
   logger("Adding geom_tippoint", "info")
 
   if (check_empty(tip_var)) {
-    check_var_in_meta(meta, tip_var)
-    geom_tippoint(size = text_size, aes(fill = !!sym(tip_var), shape = !!sym(tip_var)), ) +
+    tplot = tplot +
+      geom_tippoint(
+        size = text_size,
+        aes(fill = !!sym(tip_var), shape = !!sym(tip_var)),
+      ) +
 
       scale_fill_manual(
         tip_var,
-        values = ushape_df$colors,
-        limits = ushape_df$category,
+        values = ushape_col_maps,
         na.value = "#000000"
       ) +
 
       scale_shape_manual(
         "Legend",
-        values = ushape_df$shape,
-        breaks = ushape_df$shape
+        values = ushape_maps,
       ) +
 
       guides(
@@ -389,12 +392,13 @@ builder_tippoint = function(meta, tip_var, ushape_df) {
           override.aes = list(
             size = text_size * 1.5,
             label = "",
-            shape = ushape_df$shapes_type
+            shape = ushape_maps
           )
         )
       )
+    return(tplot)
   } else {
-    geom_tippoint(size = text_size)
+    return(tplot + geom_tippoint(size = text_size))
   }
 }
 
@@ -425,56 +429,56 @@ option_list = list(
     default = NA
   ),
   make_option(
-    c("--colors-file"),
+    c("--clades-file"),
+    help = "TSV file - 'clade\tnode number' - used for vertical bar lines beside tree to identify clades.",
+    action = "store",
+    type = "character",
+    default = ""
+  ),
+  make_option(
+    c("-c", "--colors-file"),
     help = "TSV file - 'category\\tcolor' for coloring taxa names.",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--color-by-var"),
+    c("-C", "--color-by-var"),
     help = "Variable in metafile to control the color of taxa labels. Ensure all categories are in taxa/metafile. If not provided, tiplabs are black.",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--clades-file"),
-    help = "TSV - 'clade\tnode number' - used for vertical lines on a tree.",
-    action = "store",
-    type = "character",
-    default = ""
-  ),
-  make_option(
-    c("--shapes-file"),
+    c("-s", "--shapes-file"),
     help = "TSV file - See below for information",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--shape-var"),
+    c("-S", "--shape-by-var"),
     help = "Variable in file to control the tip points shape and color. Ensure all categories are in taxa/metafile.",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--title"),
+    c("-i", "--title"),
     help = "Optional: The title of the final output",
     action = "store",
     type = "character",
     default = ""
   ),
   make_option(
-    c("--paper-size"),
+    c("-p", "--paper-size"),
     help = "Optional: Output size - options: A3p, A3l, A4l, [A4p] - p/l is the orientation. [default %default]",
     action = "store",
     type = "character",
     default = "A4p"
   ),
   make_option(
-    c("--font-size"),
+    c("-f", "--font-size"),
     help = "Optional: Specify the taxa labels font size. Set to 0 to turn off taxa labels. Treeme will try to auto calculate the best font size for you.",
     action = "store",
     type = "numeric",
@@ -512,7 +516,7 @@ tryCatch(
       )
       logger(message, "critical", TRUE)
       cat("\n")
-      quit()
+      quit(status = 1)
     }
   }
 )
@@ -525,20 +529,31 @@ print_inputs((arguments))
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
-
+# colors
 if (check_empty(arguments$`colors-file`)) {
   if (check_empty(arguments$`color-by-var`)) {
-    ucolors = reader(arguments$`colors-file`, "tsv")
-    ucolors_maps = setNames(ucolors$color, ucolors$category)
+    if (check_var_in_meta(metadata, arguments$`color-by-var`)) {
+      ucolors = reader(arguments$`colors-file`, "tsv")
+      ucolors_maps = setNames(ucolors$color, ucolors$category)
+    }
   } else {
     logger("Both --colors-file and --colors-by-var needed.", "critical")
-    quit()
+    quit(status = 1)
   }
 }
 
+# shapes
 if (check_empty(arguments$`shapes-file`)) {
-  ushapes = reader(arguments$`shapes-file`)
-  names(ushapes$shapes_type) = ushapes$`shape-cats`
+  if (check_empty(arguments$`shape-by-var`)) {
+    if (check_var_in_meta(metadata, arguments$`shape-by-var`)) {
+      ushapes = reader(arguments$`shapes-file`, "tsv")
+      ushape_maps = setNames(ushapes$shape, ushapes$category)
+      ushape_col_maps = setNames(ushapes$color, ushapes$category)
+    }
+  } else {
+    logger("Both --shapes-file and --shape-by-var needed.", "critical")
+    quit(status = 1)
+  }
 }
 
 if (check_empty(arguments$clade_var)) {
@@ -574,11 +589,11 @@ tplot = builder_tiplab(
   size = taxa_text_size
 )
 
-# builder_tippoint(
-#   meta = metadata,
-#   tip_var = arguments$`shape-var`,
-#   ushape_df = ushapes
-# ) +
+tplot = builder_tippoint(
+  tplot = tplot,
+  tip_var = arguments$`shape-by-var`,
+  ushape_df = ushapes
+)
 
 # guides(
 #   color = guide_legend(
