@@ -299,11 +299,10 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
 }
 
 check_empty = function(var) {
-  # returns FALSE when empty
   if (is.null(var)) {
     return(FALSE)
   }
-  if (var == '') {
+  if (is.character(var) && var == '') {
     return(FALSE)
   }
   if (length(var) > 0 & !is.null(var)) {
@@ -430,45 +429,39 @@ option_list = list(
   ),
   make_option(
     c("--clades-file"),
-    help = "TSV file - 'clade\tnode number' - used for vertical bar lines beside tree to identify clades.",
+    help = "TSV file - 'clade\\tnode number' - used for vertical bar lines beside tree to identify clades.",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-c", "--colors-file"),
     help = "TSV file - 'category\\tcolor' for coloring taxa names.",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-C", "--color-by-var"),
     help = "Variable in metafile to control the color of taxa labels. Ensure all categories are in taxa/metafile. If not provided, tiplabs are black.",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-s", "--shapes-file"),
     help = "TSV file - See below for information",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-S", "--shape-by-var"),
     help = "Variable in file to control the tip points shape and color. Ensure all categories are in taxa/metafile.",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-i", "--title"),
     help = "Optional: The title of the final output",
     action = "store",
-    type = "character",
-    default = ""
+    type = "character"
   ),
   make_option(
     c("-p", "--paper-size"),
@@ -481,8 +474,7 @@ option_list = list(
     c("-f", "--font-size"),
     help = "Optional: Specify the taxa labels font size. Set to 0 to turn off taxa labels. Treeme will try to auto calculate the best font size for you.",
     action = "store",
-    type = "numeric",
-    default = NULL
+    type = "numeric"
   )
 )
 
@@ -530,32 +522,36 @@ tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
 # colors
-if (check_empty(arguments$`colors-file`)) {
-  if (check_empty(arguments$`color-by-var`)) {
-    if (check_var_in_meta(metadata, arguments$`color-by-var`)) {
-      ucolors = reader(arguments$`colors-file`, "tsv")
-      ucolors_maps = setNames(ucolors$color, ucolors$category)
-    }
-  } else {
-    logger("Both --colors-file and --colors-by-var needed.", "critical")
-    quit(status = 1)
-  }
+has_cols_file <- check_empty(arguments$`colors-file`)
+has_cols_var <- check_empty(arguments$`color-by-var`)
+
+if (xor(has_cols_file, has_cols_var)) {
+  logger("Both --colors-file and --colors-by-var needed.", "critical")
+  quit(status = 1)
+}
+if (has_cols_file && has_cols_var) {
+  check_var_in_meta(metadata, arguments$`color-by-var`)
+  ucolors = reader(arguments$`colors-file`, "tsv")
+  ucolors_maps = setNames(ucolors$color, ucolors$category)
 }
 
 # shapes
-if (check_empty(arguments$`shapes-file`)) {
-  if (check_empty(arguments$`shape-by-var`)) {
-    if (check_var_in_meta(metadata, arguments$`shape-by-var`)) {
-      ushapes = reader(arguments$`shapes-file`, "tsv")
-      ushape_maps = setNames(ushapes$shape, ushapes$category)
-      ushape_col_maps = setNames(ushapes$color, ushapes$category)
-    }
-  } else {
-    logger("Both --shapes-file and --shape-by-var needed.", "critical")
-    quit(status = 1)
-  }
+has_shapes_file <- check_empty(arguments$`shapes-file`)
+has_shapes_var <- check_empty(arguments$`shape-by-var`)
+
+if (xor(has_shapes_file, has_shapes_var)) {
+  logger("Both --shapes-file and --shape-by-var needed.", "critical")
+  quit(status = 1)
 }
 
+if (has_shapes_file && has_shapes_var) {
+  check_var_in_meta(metadata, arguments$`shape-by-var`)
+  ushapes = reader(arguments$`shapes-file`, "tsv")
+  ushape_maps = setNames(ushapes$shape, ushapes$category)
+  ushape_col_maps = setNames(ushapes$color, ushapes$category)
+}
+
+# clades file
 if (check_empty(arguments$clade_var)) {
   clades = reader(arguments$clade_var, "tsv")
 }
@@ -573,6 +569,7 @@ if (check_empty(arguments$`font-size`)) {
 } else {
   taxa_text_size = calc_text_size(phylo = tree, page_size = output_size)
 }
+
 text_size = calc_text_size(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)

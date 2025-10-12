@@ -40,7 +40,7 @@ teardown() {
 }
 
 @test "Test: color taxa - Success" {
-    treeme.R -t $TREE -m $META -o $OUTPUT --colors-file $COLOR_FILE --color-by-var $COLOR_VAR
+    run treeme.R -t $TREE -m $META -o $OUTPUT --colors-file $COLOR_FILE --color-by-var $COLOR_VAR
 
     [[ "$status" -eq 0 ]]
     [[ -f "$OUTPUT" ]]
@@ -48,16 +48,30 @@ teardown() {
 }
 
 @test "Test: color taxa - Failure" {
-    run treeme.R -t $TREE -m $META -o $OUTPUT --colors-file $COLOR_FILE --color-by-var NotReal
+    run treeme.R -t $TREE -m $META -o $OUTPUT --colors-file $COLOR_FILE --color-by-var "NotReal"
 
     [[ "$status" -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]] # =~ is bats-core for "contains"
 }
 
 @test "Test: tippoint - Success" {
-    treeme.R -t $TREE -m $META -o $OUTPUT --shapes-file $SHAPES_FILE --shape-by-var $SHAPE_VAR
+    run treeme.R -t $TREE -m $META -o $OUTPUT --shapes-file $SHAPES_FILE --shape-by-var $SHAPE_VAR
 
     [[ "$status" -eq 0 ]]
     [[ -f "$OUTPUT" ]]
     [[ -s "$OUTPUT" ]] 
+}
+
+@test "Test: tippoint missing shape-file - failure" {
+    run treeme.R -t $TREE -m $META -o $OUTPUT --shapes-file $SHAPES_FILE
+
+    [[ "$status" -eq 1 ]]
+    [[ "$output" =~ "CRITICAL" ]]
+}
+
+@test "Test: tippoint missing shape-var - failure" {
+    run treeme.R -t $TREE -m $META -o $OUTPUT --shape-by-var $SHAPE_VAR
+
+    [[ "$status" -eq 1 ]]
+    [[ "$output" =~ "CRITICAL" ]]
 }
