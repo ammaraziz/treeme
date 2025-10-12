@@ -641,7 +641,8 @@ tplot = tplot +
 # }
 
 ggsave(
-  filename = arguments$output,
+  filename = basename(arguments$output),
+  path = dirname(arguments$output),
   plot = tplot,
   device = set_device(arguments$output),
   width = output_size[1],
