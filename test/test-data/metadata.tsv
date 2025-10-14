@@ -1,4 +1,4 @@
-sampleid	state	month	extra_1	extra_2
-alpha	qld	jan	1	a
-beta	vic	mar	2	b
-kappa	nsw	aug	3	c
+sampleid	state	month	shape	shape_color	taxa_color
+alpha	qld	jan	23	#f03b20	#0A0AEF
+beta	vic	mar	22	#A63F03	#9e3900
+kappa	nsw	aug	21	#F2B705	#26A509
