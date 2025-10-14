@@ -2,6 +2,7 @@
 options(warn = -1)
 
 pacman::p_load(
+  ggnewscale,
   optparse,
   ggtree,
   ggplot2,
@@ -199,7 +200,6 @@ calc_text_size = function(phylo, page_size, type = "logistic") {
   } else {
     logger("Internal bug - report this issue on github", "critical")
   }
-  logger(paste0("Number of taxa on tree: ", ntaxa, ", using font size: ", font_size))
   return(font_size)
 }
 
@@ -327,76 +327,81 @@ print_inputs = function(arguments) {
 }
 
 builder_tiplab = function(tplot, color_var, size) {
-  logger("Adding geom_tiplab", "info")
-
-  offset = 0.001
+  offset = 0.01
   if (check_empty(color_var)) {
+    logger(paste0("Adding geom_tiplab, coloring by ", color_var), "info")
+
     tplot = tplot +
+      new_scale_color() +
       geom_tiplab(
         aes(color = !!sym(color_var)),
         size = size,
         offset = offset,
-        family = "Arial",
-        key_glyph = rectangle_key_glyph(
-          fill = color,
-          padding = margin(0, 0, 0, 0),
-          color = "black",
-          linetype = 3
-        )
+        family = "Arial"
       ) +
       scale_color_manual(
-        values = ucolors_maps,
-        na.value = "#000000"
+        values = ucolor_map,
+        na.translate = FALSE
+      ) +
+      guides(
+        color = guide_legend(
+          override.aes = list(
+            label = "\u25A0",
+            size = 10,
+            linetype = 3
+          )
+        )
       )
   } else {
+    logger("Adding geom_tiplab, no color specified", "info")
     tplot = tplot +
       geom_tiplab(
         geom = "text",
         size = size,
         offset = offset,
-        family = "Arial",
-        key_glyph = rectangle_key_glyph(
-          padding = margin(0, 0, 0, 0),
-          color = "black",
-          linetype = 3
-        )
-      )
+        family = "Arial"
+      ) +
+      # add a polygon geom just for the legend
+      geom_polygon(aes(x = 0, y = 0, fill = !!sym(color_var)))
   }
   return(tplot)
 }
 
-builder_tippoint = function(tplot, tip_var, ushape_df) {
-  logger("Adding geom_tippoint", "info")
+builder_tippoint = function(tplot, shape_by, fill_by) {
+  if (check_empty(shape_by)) {
+    logger(paste0("Adding tippoint shapes, using ", arguments$`shape-by`), "info")
 
-  if (check_empty(tip_var)) {
     tplot = tplot +
+      new_scale_color() +
       geom_tippoint(
         size = text_size,
-        aes(fill = !!sym(tip_var), shape = !!sym(tip_var)),
+        aes(
+          fill = !!sym(fill_by),
+          shape = !!sym(shape_by)
+        ),
       ) +
-
       scale_fill_manual(
-        tip_var,
-        values = ushape_col_maps,
+        fill_by,
+        values = ushape_col_map,
         na.value = "#000000"
       ) +
-
       scale_shape_manual(
-        "Legend",
-        values = ushape_maps,
+        "Disabled",
+        values = ushape_map
       ) +
-
       guides(
         fill = guide_legend(
           override.aes = list(
             size = text_size * 1.5,
             label = "",
-            shape = ushape_maps
+            shape = ushape_map
           )
-        )
+        ),
+        shape = "none"
       )
     return(tplot)
   } else {
+    logger(paste0("Adding tippoint, no shape specified"), "info")
     return(tplot + geom_tippoint(size = text_size))
   }
 }
@@ -435,7 +440,7 @@ option_list = list(
   ),
   make_option(
     c("-s", "--shape-by"),
-    help = "Column name in metafile to control the color AND shape of tip points. If not provided, tips are blank (no shape).",
+    help = "Column name in metafile to control the shape of tip points. If not provided, tips are blank (no shape).",
     action = "store",
     type = "character"
   ),
@@ -476,7 +481,11 @@ parser = OptionParser(
     "\t- A warning appears about taxa/metafile labels; open the tree file in a text editor and check the label names. These much match exactly, no spaces, no underscores."
   ),
   option_list = option_list,
-  usage = "probably out of date: treeme.r -t {tree} -o {pdf} -c {file} -m {meta} -l {variable} -p {variable} -g {title} -s {size}"
+  usage = c(
+    "Basic; treeme.R -t tree.nwk -m metadata.tsv -o tree.pdf",
+    "With taxa colored; treeme.R -t tree.nwk -m metadata.tsv -o tree.pdf -c state",
+    "With tip point shapes; treeme.R -t tree.nwk -m metadata.tsv -o tree.pdf -c {var} -s {var}"
+  )
 )
 
 tryCatch(
@@ -501,6 +510,16 @@ tryCatch(
   }
 )
 
+# for manual testing
+if (interactive()) {
+  arguments = list(
+    metadata = "test/test-test-data/metadata.tsv",
+    tree = "test/test-test-data/basic.nwk",
+    `color-by` = "month",
+    `shape-by` = "state"
+  )
+}
+
 #########################################
 ############# Input checks ##############
 #########################################
@@ -510,33 +529,22 @@ tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
 # colors
-has_cols_file <- check_empty(arguments$`colors-file`)
-has_cols_var <- check_empty(arguments$`color-by-var`)
+if (check_empty(arguments$`color-by`)) {
+  check_var_in_meta(metadata, arguments$`color-by`)
 
-if (xor(has_cols_file, has_cols_var)) {
-  logger("Both --colors-file and --colors-by-var needed.", "critical")
-  quit(status = 1)
-}
-if (has_cols_file && has_cols_var) {
-  check_var_in_meta(metadata, arguments$`color-by-var`)
-  ucolors = reader(arguments$`colors-file`, "tsv")
-  ucolors_maps = setNames(ucolors$color, ucolors$category)
+  # ucolor_map = setNames(
+  #   c(metadata$taxa_color, "grey50"),
+  #   c(metadata[, arguments$`color-by`], NA)
+  # )
+  ucolor_map = setNames(metadata$taxa_color, metadata[, arguments$`color-by`])
 }
 
 # shapes
-has_shapes_file <- check_empty(arguments$`shapes-file`)
-has_shapes_var <- check_empty(arguments$`shape-by-var`)
+if (check_empty(arguments$`shape-by`)) {
+  check_var_in_meta(metadata, arguments$`shape-by`)
 
-if (xor(has_shapes_file, has_shapes_var)) {
-  logger("Both --shapes-file and --shape-by-var needed.", "critical")
-  quit(status = 1)
-}
-
-if (has_shapes_file && has_shapes_var) {
-  check_var_in_meta(metadata, arguments$`shape-by-var`)
-  ushapes = reader(arguments$`shapes-file`, "tsv")
-  ushape_maps = setNames(ushapes$shape, ushapes$category)
-  ushape_col_maps = setNames(ushapes$color, ushapes$category)
+  ushape_map = setNames(metadata$shape, metadata[, arguments$`shape-by`])
+  ushape_col_map = setNames(metadata$shape_color, metadata[, arguments$`shape-by`])
 }
 
 # clades file
@@ -561,6 +569,7 @@ if (check_empty(arguments$`font-size`)) {
 text_size = calc_text_size(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
+logger(paste0("Using font size: ", taxa_text_size))
 
 ##############################################
 ################ Tree plotting ###############
@@ -570,38 +579,28 @@ tplot = ggtree(tree) %<+% metadata
 
 tplot = builder_tiplab(
   tplot = tplot,
-  color_var = arguments$`color-by-var`,
+  color_var = arguments$`color-by`,
   size = taxa_text_size
 )
 
 tplot = builder_tippoint(
   tplot = tplot,
-  tip_var = arguments$`shape-by-var`,
-  ushape_df = ushapes
+  shape_by = arguments$`shape-by`,
+  fill_by = arguments$`shape-by`
 )
-
-# guides(
-#   color = guide_legend(
-#     override.aes = list(
-#       size = text_size * 5,
-#       label = "\u25A0",
-#       linetype = 3
-#     )
-#   )
-# ) +
 
 # ggtitle(tree_title(arguments$title))
 
 tplot = tplot +
   theme(
-    legend.position = c(0.1, 0.65),
-    legend.key.size = unit(text_size * 2, "mm"),
+    legend.position = c(0.1, 0.85),
+    legend.key.size = unit(text_size, "mm"),
     legend.background = element_blank(),
-    legend.text = element_text(size = 12),
-    legend.title = element_text(size = 15),
     legend.margin = margin(0, 0, 0, 0),
     legend.spacing.x = unit(0, "mm"),
     legend.spacing.y = unit(0, "mm"),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 15),
     plot.title = element_text(hjust = 0.06, vjust = -15, size = 20),
     plot.subtitle = element_text(hjust = 0.02, vjust = -12, size = 20)
   )
