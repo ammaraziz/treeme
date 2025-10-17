@@ -367,7 +367,7 @@ builder_tiplab = function(tplot, color_var, size) {
 
 builder_tippoint = function(tplot, shape_by, fill_by) {
   if (check_empty(shape_by)) {
-    logger(paste0("Adding tippoint shapes, variable: ", arguments$`shape-by`), "info")
+    logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
 
     tplot = tplot +
       new_scale_color() +
@@ -399,10 +399,26 @@ builder_tippoint = function(tplot, shape_by, fill_by) {
       )
     return(tplot)
   } else {
-    logger(paste0("Adding tippoint, no shape specified"), "info")
-    return(tplot + geom_tippoint(size = text_size))
+    logger(paste0("No shape specified - skipping tippoints"), "info")
+    return(tplot)
   }
 }
+
+builder_text = function(tplot, text) {
+  if (check_empty(text)) {
+    logger(paste0("Adding branch labels, variable: ", text), "info")
+    tplot = tplot +
+      geom_text(
+        aes(x = branch, label = text),
+        size = text_size / 2,
+        vjust = -0.3
+      )
+    return(tplot)
+  } else {
+    return(tplot)
+  }
+}
+
 
 #########################################
 ############# CLI Parser ################
@@ -432,25 +448,31 @@ option_list = list(
   ),
   make_option(
     c("-c", "--color-by"),
-    help = "Column name in metafile to control the color of taxa labels. If not provided, tiplabs are black.",
+    help = "Optional: Column name in metafile to control the color of taxa labels. If not provided, tiplabs are black.",
     action = "store",
     type = "character"
   ),
   make_option(
     c("-s", "--shape-by"),
-    help = "Column name in metafile to control the shape of tip points. If not provided, tips are blank (no shape).",
+    help = "Optional: Column name in metafile to control the shape of tip points. If not provided, tips are blank (no shape).",
+    action = "store",
+    type = "character"
+  ),
+  make_option(
+    c("-b", "--branch-label-by"),
+    help = "Optional: Add branch labels",
     action = "store",
     type = "character"
   ),
   make_option(
     c("--clades-file"),
-    help = "TSV file - 'clade\\tnode number' - used for vertical bar lines beside tree to identify clades.",
+    help = "Optional: TSV file - 'clade\\tnode number' - used for vertical bar lines beside tree to identify clades.",
     action = "store",
     type = "character"
   ),
   make_option(
     c("-i", "--title"),
-    help = "Optional: The title of the final output",
+    help = "Optional: Optional: The title of the final output",
     action = "store",
     type = "character"
   ),
@@ -587,6 +609,11 @@ tplot = builder_tippoint(
   tplot = tplot,
   shape_by = arguments$`shape-by`,
   fill_by = arguments$`shape-by`
+)
+
+tplot = builder_text(
+  tplot = tplot,
+  text = arguments$`branch-label-by`
 )
 
 # ggtitle(tree_title(arguments$title))
