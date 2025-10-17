@@ -49,16 +49,24 @@ read_tree_auto = function(infile) {
     ext = tail(ext, 1)
   }
   if (ext == "nwk" | ext == "newick") {
+    tree_format <<- "newick"
     return(read.newick(infile))
   }
   if (ext == "nexus") {
+    tree_format <<- "nexus"
     return(read.nexus(infile))
   }
-  if (ext == "nhx" | ext == "beast") {
+  if (ext == "beast") {
+    tree_format <<- "beast"
     return(read.beast(infile))
+  }
+  if (ext == "nhx") {
+    tree_format <<- "nhx"
+    return(read.nhx(infile))
   }
   if (ext == "json") {
     logger("Reading in nextstrain json, this can take a while!", "warning")
+    tree_format <<- "json"
     return(read.nextstrain.json())
   }
 }
@@ -173,6 +181,7 @@ calc_text_size = function(phylo, page_size, type = "logistic") {
     logger("Unable to get num of tips in input tree. Check tree type is nwk or nhx", "critical")
     quit(status = 1)
   }
+
   width = page_size[1]
   height = page_size[2]
   min_font = 1
@@ -404,19 +413,30 @@ builder_tippoint = function(tplot, shape_by, fill_by) {
   }
 }
 
-builder_text = function(tplot, text) {
-  if (check_empty(text)) {
-    logger(paste0("Adding branch labels, variable: ", text), "info")
-    tplot = tplot +
-      geom_text(
-        aes(x = branch, label = text),
-        size = text_size / 2,
-        vjust = -0.3
-      )
-    return(tplot)
-  } else {
-    return(tplot)
+builder_bootstrap = function(tplot, text, format) {
+  logger("Adding bootstrap values to branches", "info")
+
+  if (format == "nhx") {
+    b_label = "B"
   }
+  if (format == "newick") {
+    b_label = "label"
+  } else {
+    logger(paste0("Plotting bootstrap values are not implemented for tree format: ", b_label), "warning")
+    quit(1)
+  }
+
+  tplot = tplot +
+    geom_text(
+      data = td_filter(!isTip),
+      aes(
+        x = branch,
+        label = !!sym(b_label)
+      ),
+      size = text_size * 0.75,
+      vjust = -0.3
+    )
+  return(tplot)
 }
 
 
@@ -459,10 +479,9 @@ option_list = list(
     type = "character"
   ),
   make_option(
-    c("-b", "--branch-label-by"),
-    help = "Optional: Add branch labels",
-    action = "store",
-    type = "character"
+    c("-b", "--bootstrap"),
+    help = "Optional: Show boostrap values on branches. Note: Treeme does not show terminal bootstrap values.",
+    action = "store_true"
   ),
   make_option(
     c("--clades-file"),
@@ -589,6 +608,7 @@ if (check_empty(arguments$`font-size`)) {
 }
 
 text_size = calc_text_size(phylo = tree, page_size = output_size)
+taxa_offset = calc_text_size(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 logger(paste0("Using font size: ", round(taxa_text_size, 3)))
@@ -610,11 +630,13 @@ tplot = builder_tippoint(
   shape_by = arguments$`shape-by`,
   fill_by = arguments$`shape-by`
 )
-
-tplot = builder_text(
-  tplot = tplot,
-  text = arguments$`branch-label-by`
-)
+if (isTRUE(arguments$bootstrap)) {
+  tplot = builder_bootstrap(
+    tplot = tplot,
+    text = arguments$`branch-label-by`,
+    format = tree_format
+  )
+}
 
 # ggtitle(tree_title(arguments$title))
 
