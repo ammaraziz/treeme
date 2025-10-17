@@ -6,8 +6,6 @@ global_setup() {
     TREE_NEXUS="test/test-data/test.nexus"
     META="test/test-data/metadata.tsv"
     META_BOOT="test/test-data/metadata.boot.tsv"
-    COLOR_VAR="month"
-    SHAPE_VAR="state"
     OUTPUT_BASE="test/test-data/output/"
     OUTPUT_FAILED="test/test-data/output/fail.pdf"
 }
@@ -42,7 +40,7 @@ global_setup
 }
 
 @test "Test: color taxa - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/colortaxa.pdf" -c $COLOR_VAR
+    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/colortaxa.pdf" -c "month"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/colortaxa.pdf" ]]
@@ -57,7 +55,7 @@ global_setup
 }
 
 @test "Test: tippoint - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_BASE -s $SHAPE_VAR
+    run treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_BASE -s "state"
 
     [[ "$status" -eq 0 ]]
     [[ -f "$OUTPUT_BASE" ]]
@@ -73,7 +71,7 @@ global_setup
 
 @test "Test: colors and shape input - Success" {
     run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/colorshape.pdf" \
-    -c $COLOR_VAR -s $SHAPE_VAR
+    -c "month" -s "state"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/colorshape.pdf" ]]
@@ -82,19 +80,29 @@ global_setup
 
 @test "Test: basic tree with no labels, has colors and shapes - Success" {
     run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/shapecolor_notext.pdf" \
-    --font-size 0 -c $COLOR_VAR -s $SHAPE_VAR
+    --font-size 0 -c "month" -s "state"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/shapecolor_notext.pdf" ]]
     [[ -s "${OUTPUT_BASE}/shapecolor_notext.pdf" ]] 
 }
 
+@test "Test: big tree; no taxa with shapes - Failed" {
+    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/boot_shapecolor.pdf" \
+    --font-size 0 -c "month" -s "state"
+
+    [[ $status -eq 1 ]]
+    [[ "$output" =~ "CRITICAL" ]]
+
+}
+
 @test "Test: big tree; no taxa with shapes - Success" {
     run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/boot_shapecolor.pdf" \
-    --font-size 0 -c $COLOR_VAR -s $SHAPE_VAR
+    --font-size 0 -s "state"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/boot_shapecolor.pdf" ]]
     [[ -s "${OUTPUT_BASE}/boot_shapecolor.pdf" ]] 
 }
-# global_teardown
+
+#global_teardown
