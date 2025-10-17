@@ -1,2 +1,2 @@
 .DS_Store
-test-data/*.pdf
+test/test-data/output/*.pdf
