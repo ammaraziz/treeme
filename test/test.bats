@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 global_setup() {
-    TREE_BASIC="test/test-data/basic.nwk"
+    TREE_BASIC="test/test-data/test.nwk"
     TREE_BOOT="test/test-data/boot.nwk"
     TREE_NEXUS="test/test-data/test.nexus"
     META="test/test-data/metadata.tsv"
@@ -24,7 +24,7 @@ global_setup
 }
 
 @test "Test: basic test - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/basic.pdf"
+    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test.pdf"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/basic.pdf" ]]
@@ -88,7 +88,7 @@ global_setup
 }
 
 @test "Test: big tree; no taxa with shapes - Failed" {
-    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/boot_shapecolor.pdf" \
+    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/failed.pdf" \
     --font-size 0 -c "month" -s "state"
 
     [[ $status -eq 1 ]]
@@ -97,12 +97,21 @@ global_setup
 }
 
 @test "Test: big tree; no taxa with shapes - Success" {
-    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/boot_shapecolor.pdf" \
+    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/shapecolor_big.pdf" \
     --font-size 0 -s "state"
 
     [[ $status -eq 0 ]]
-    [[ -f "${OUTPUT_BASE}/boot_shapecolor.pdf" ]]
-    [[ -s "${OUTPUT_BASE}/boot_shapecolor.pdf" ]] 
+    [[ -f "${OUTPUT_BASE}/shapecolor_big.pdf" ]]
+    [[ -s "${OUTPUT_BASE}/shapecolor_big.pdf" ]] 
+}
+
+@test "Test: big tree; branch labels - Success" {
+    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/bootstrap_big.pdf" \
+    --bootstrap
+
+    [[ $status -eq 0 ]]
+    [[ -f "${OUTPUT_BASE}/bootstrap.pdf" ]]
+    [[ -s "${OUTPUT_BASE}/bootstrap.pdf" ]] 
 }
 
 #global_teardown
