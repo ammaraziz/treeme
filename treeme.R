@@ -1,15 +1,15 @@
 #!/usr/bin/env Rscript
 options(warn = -1)
+rlang::global_handle()
 
-pacman::p_load(
-  ggnewscale,
-  optparse,
-  ggtree,
-  ggplot2,
-  treeio,
-  cowplot,
-  dplyr,
-  Cario
+suppressPackageStartupMessages(
+  invisible(
+    lapply(
+      c("ggnewscale", "optparse", "ggtree", "ggplot2", "treeio", "cowplot", "dplyr", "Cairo"),
+      require,
+      character.only = TRUE
+    )
+  )
 )
 
 ###############################
@@ -360,16 +360,14 @@ builder_tiplab = function(tplot, color_var, size) {
         size = size,
         offset = offset,
         family = "Arial"
-      ) +
-      # add a polygon geom just for the legend
-      geom_polygon(aes(x = 0, y = 0, fill = !!sym(color_var)))
+      )
   }
   return(tplot)
 }
 
 builder_tippoint = function(tplot, shape_by, fill_by) {
   if (check_empty(shape_by)) {
-    logger(paste0("Adding tippoint shapes, using ", arguments$`shape-by`), "info")
+    logger(paste0("Adding tippoint shapes, variable: ", arguments$`shape-by`), "info")
 
     tplot = tplot +
       new_scale_color() +
@@ -383,7 +381,7 @@ builder_tippoint = function(tplot, shape_by, fill_by) {
       scale_fill_manual(
         fill_by,
         values = ushape_col_map,
-        na.value = "#000000"
+        na.value = "grey50"
       ) +
       scale_shape_manual(
         "Disabled",
@@ -394,7 +392,7 @@ builder_tippoint = function(tplot, shape_by, fill_by) {
           override.aes = list(
             size = text_size * 1.5,
             label = "",
-            shape = ushape_map
+            shape = c(names(unique(ushape_map)), 21) # for NA values that might be introduced
           )
         ),
         shape = "none"
@@ -513,10 +511,11 @@ tryCatch(
 # for manual testing
 if (interactive()) {
   arguments = list(
-    metadata = "test/test-test-data/metadata.tsv",
-    tree = "test/test-test-data/basic.nwk",
-    `color-by` = "month",
-    `shape-by` = "state"
+    metadata = "test/test-data/metadata.boot.tsv",
+    tree = "test/test-data/boot.nwk",
+    # `color-by` = "month",
+    `shape-by` = "state",
+    `paper-size` = "A3p"
   )
 }
 
@@ -530,12 +529,13 @@ metadata = reader(arguments$meta, "tsv")
 
 # colors
 if (check_empty(arguments$`color-by`)) {
-  check_var_in_meta(metadata, arguments$`color-by`)
+  if (!is.null(metadata$taxa_color)) {
+    check_var_in_meta(metadata, arguments$`color-by`)
+  } else {
+    logger("Column 'taxa_color' is needed due to the flag --color-by", "critical")
+    quit()
+  }
 
-  # ucolor_map = setNames(
-  #   c(metadata$taxa_color, "grey50"),
-  #   c(metadata[, arguments$`color-by`], NA)
-  # )
   ucolor_map = setNames(metadata$taxa_color, metadata[, arguments$`color-by`])
 }
 
@@ -569,7 +569,7 @@ if (check_empty(arguments$`font-size`)) {
 text_size = calc_text_size(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
-logger(paste0("Using font size: ", taxa_text_size))
+logger(paste0("Using font size: ", round(taxa_text_size, 3)))
 
 ##############################################
 ################ Tree plotting ###############
