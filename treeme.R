@@ -212,6 +212,10 @@ calc_text_size = function(phylo, page_size, type = "logistic") {
   return(font_size)
 }
 
+calc_offset = function(phylo, page_size) {
+  return(0.01)
+}
+
 check_taxa_names = function(tree, meta_desig) {
   # tree - must be of object type X and Y
   # meta_desig :  vector list, input should be like metadata[, 'designation']
@@ -335,21 +339,19 @@ print_inputs = function(arguments) {
   }
 }
 
-builder_tiplab = function(tplot, color_var, size) {
-  offset = 0.01
-  if (check_empty(color_var)) {
+builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
+  if (!is.null(color_var)) {
     logger(paste0("Adding geom_tiplab, coloring by ", color_var), "info")
-
     tplot = tplot +
       new_scale_color() +
       geom_tiplab(
         aes(color = !!sym(color_var)),
-        size = size,
+        size = taxa_size,
         offset = offset,
         family = "Arial"
       ) +
       scale_color_manual(
-        values = ucolor_map,
+        values = ucolors, #ucolor_map
         na.translate = FALSE
       ) +
       guides(
@@ -362,11 +364,11 @@ builder_tiplab = function(tplot, color_var, size) {
         )
       )
   } else {
-    logger("Adding geom_tiplab, no color specified", "info")
+    logger("Adding taxa labels, no color specified", "info")
     tplot = tplot +
       geom_tiplab(
         geom = "text",
-        size = size,
+        size = taxa_size,
         offset = offset,
         family = "Arial"
       )
@@ -374,55 +376,55 @@ builder_tiplab = function(tplot, color_var, size) {
   return(tplot)
 }
 
-builder_tippoint = function(tplot, shape_by, fill_by) {
-  if (check_empty(shape_by)) {
-    logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
+builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, text_size) {
+  logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
 
-    tplot = tplot +
-      new_scale_color() +
-      geom_tippoint(
-        size = text_size,
-        aes(
-          fill = !!sym(fill_by),
-          shape = !!sym(shape_by)
-        ),
-      ) +
-      scale_fill_manual(
-        fill_by,
-        values = ushape_col_map,
-        na.value = "grey50"
-      ) +
-      scale_shape_manual(
-        "Disabled",
-        values = ushape_map
-      ) +
-      guides(
-        fill = guide_legend(
-          override.aes = list(
-            size = text_size * 1.5,
-            label = "",
-            shape = c(names(unique(ushape_map)), 21) # for NA values that might be introduced
-          )
-        ),
-        shape = "none"
-      )
-    return(tplot)
-  } else {
-    logger(paste0("No shape specified - skipping tippoints"), "info")
-    return(tplot)
-  }
+  tplot = tplot +
+    new_scale_color() +
+    geom_tippoint(
+      size = text_size * 2,
+      stroke = 0.2,
+      aes(
+        fill = !!sym(fill_by),
+        shape = !!sym(shape_by)
+      ),
+    ) +
+    scale_fill_manual(
+      fill_by,
+      values = ushape_cols, #ushape_col_map,
+      na.value = "grey50"
+    ) +
+    scale_shape_manual(
+      "Disabled",
+      values = ushapes, #ushape_map
+    ) +
+    guides(
+      fill = guide_legend(
+        override.aes = list(
+          size = text_size * 1.5,
+          label = "",
+          shape = c(names(unique(ushapes)), 21) # for NA values that might be introduced
+        )
+      ),
+      shape = "none"
+    )
+  return(tplot)
+  # } else {
+  #   logger(paste0("No shape specified - skipping tippoints"), "info")
+  #   return(tplot)
+  # }
 }
 
-builder_bootstrap = function(tplot, text, format) {
+builder_bootstrap = function(tplot, format, size) {
   logger("Adding bootstrap values to branches", "info")
 
   if (format == "nhx") {
-    b_label = "B"
+    bootstrap_label = "B"
   }
   if (format == "newick") {
-    b_label = "label"
+    bootstrap_label = "label"
   } else {
-    logger(paste0("Plotting bootstrap values are not implemented for tree format: ", b_label), "warning")
+    logger(paste0("Plotting bootstrap values are not implemented for tree format: ", bootstrap_label), "warning")
     quit(1)
   }
 
@@ -431,15 +433,68 @@ builder_bootstrap = function(tplot, text, format) {
       data = td_filter(!isTip),
       aes(
         x = branch,
-        label = !!sym(b_label)
+        label = !!sym(bootstrap_label)
       ),
-      size = text_size * 0.75,
+      size = size * 0.75,
       vjust = -0.3
     )
   return(tplot)
 }
 
+master_builder = function(phylo, meta, args, ucolor, ushape, ushape_color, taxa_size, taxa_offset, tree_format) {
+  tplot = ggtree(tree, size = 0.1) %<+% meta
 
+  tplot = builder_tiplab(
+    tplot = tplot,
+    color_var = arguments$`color-by`,
+    taxa_size = taxa_size,
+    offset = taxa_offset,
+    ucolors = ucolor
+  )
+
+  if (check_empty(arguments$`shape-by`)) {
+    tplot = builder_tippoint(
+      tplot = tplot,
+      shape_by = arguments$`shape-by`,
+      fill_by = arguments$`shape-by`,
+      ushape_cols = ushape_color,
+      ushapes = ushape,
+      text_size = taxa_size
+    )
+  }
+  if (isTRUE(arguments$bootstrap)) {
+    tplot = builder_bootstrap(
+      tplot = tplot,
+      format = tree_format,
+      size = taxa_size
+    )
+  }
+
+  # # mutations on branches
+  # nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
+
+  # tplot = tplot +
+  #   geom_text(
+  #     aes(x = branch, label = aa_muts),
+  #     size = text_size - 0.5,
+  #     nudge_y = nudge
+  #   )
+
+  # Fix tip label clipping
+  # plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
+
+  # tplot = tplot +
+  #   coord_cartesian(clip = "off", expand = FALSE) +
+  #   xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
+
+  # # add clades
+  # if (check_empty(arguments$`clades-file`)) {
+  #   treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
+  # }
+  return(tplot)
+}
+
+create_umaps = function() {}
 #########################################
 ############# CLI Parser ################
 #########################################
@@ -608,7 +663,7 @@ if (check_empty(arguments$`font-size`)) {
 }
 
 text_size = calc_text_size(phylo = tree, page_size = output_size)
-taxa_offset = calc_text_size(phylo = tree, page_size = output_size)
+taxa_offset = calc_offset(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 logger(paste0("Using font size: ", round(taxa_text_size, 3)))
@@ -617,28 +672,17 @@ logger(paste0("Using font size: ", round(taxa_text_size, 3)))
 ################ Tree plotting ###############
 ##############################################
 
-tplot = ggtree(tree) %<+% metadata
-
-tplot = builder_tiplab(
-  tplot = tplot,
-  color_var = arguments$`color-by`,
-  size = taxa_text_size
+tplot = master_builder(
+  phylo = tree,
+  meta = metadata,
+  args = arguments,
+  ucolor = ucolor_map,
+  ushape = ushape_map,
+  ushape_color = ushape_col_map,
+  taxa_offset = taxa_offset,
+  taxa_size = taxa_text_size,
+  tree_format = tree_format
 )
-
-tplot = builder_tippoint(
-  tplot = tplot,
-  shape_by = arguments$`shape-by`,
-  fill_by = arguments$`shape-by`
-)
-if (isTRUE(arguments$bootstrap)) {
-  tplot = builder_bootstrap(
-    tplot = tplot,
-    text = arguments$`branch-label-by`,
-    format = tree_format
-  )
-}
-
-# ggtitle(tree_title(arguments$title))
 
 tplot = tplot +
   theme(
@@ -653,28 +697,6 @@ tplot = tplot +
     plot.title = element_text(hjust = 0.06, vjust = -15, size = 20),
     plot.subtitle = element_text(hjust = 0.02, vjust = -12, size = 20)
   )
-
-# # mutations on branches
-# nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
-
-# tplot = tplot +
-#   geom_text(
-#     aes(x = branch, label = aa_muts),
-#     size = text_size - 0.5,
-#     nudge_y = nudge
-#   )
-
-# Fix tip label clipping
-# plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
-
-# tplot = tplot +
-#   coord_cartesian(clip = "off", expand = FALSE) +
-#   xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
-
-# # add clades
-# if (check_empty(arguments$`clades-file`)) {
-#   treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
-# }
 
 ggsave(
   filename = basename(arguments$output),
