@@ -33,7 +33,7 @@ global_setup
 }
 
 @test "Test 3: basic tree with no labels - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test3_nolabs.pdf" --font-size 0
+    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test3_nolabs.pdf" --taxa-font-size 0
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test3_nolabs.pdf" ]]
@@ -82,7 +82,7 @@ global_setup
 
 @test "Test 9: basic tree with no labels, has colors and shapes - Success" {
     run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
-    --font-size 0 -c "month" -s "state"
+    --taxa-font-size 0 -c "month" -s "state"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" ]]
@@ -91,7 +91,7 @@ global_setup
 
 @test "Test 10: big tree; no taxa with shapes - Failed" {
     run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/failed.pdf" \
-    --font-size 0 -c "month" -s "state"
+    --taxa-font-size 0 -c "month" -s "state"
 
     [[ $status -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]]
@@ -99,7 +99,7 @@ global_setup
 
 @test "Test 11: big tree; no taxa with shapes - Success" {
     run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
-    --font-size 0 -s "state"
+    --taxa-font-size 0 -s "state"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" ]]
