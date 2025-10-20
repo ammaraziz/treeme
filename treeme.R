@@ -17,7 +17,7 @@ suppressPackageStartupMessages(
 ###############################
 
 logger = function(text, level = "info", simple = FALSE) {
-  time = format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  start = format(Sys.time(), "%H:%M:%S")
   off = "\033[0m\n"
   codes = c(
     black = "\033[0;30m", # Black
@@ -38,7 +38,7 @@ logger = function(text, level = "info", simple = FALSE) {
   if (simple) {
     cat(levels[level], text, off, file = stderr())
   } else {
-    cat(levels[level], time, "|", toupper(level), "|", text, off, file = stderr())
+    cat(levels[level], start, "|", toupper(level), "|", text, off, file = stderr())
   }
 }
 
@@ -148,7 +148,7 @@ get_page_size = function(size) {
   )
   if (!any(size %in% names(paper))) {
     logger(
-      paste0("Page size of: ", size, " is not accepted. Options: A3p A3l A4p A4l. See help for further info"),
+      paste0("Page size of: ", size, " is not accepted. Choose from: ", paste0(names(paper), collapse = ", ")),
       "critical"
     )
     quit(status = 1)
@@ -165,7 +165,7 @@ tree_title = function(title) {
 ########### Functions for Tree ################
 ###############################################
 
-calc_text_size = function(phylo, page_size, type = "logistic") {
+calc_taxa_label_size = function(phylo, page_size, type = "logistic") {
   # phylo is is the output of func read_tree_auto
   # type controls how text size is calculated
   # area - page size aware font scaling
@@ -210,6 +210,26 @@ calc_text_size = function(phylo, page_size, type = "logistic") {
     logger("Internal bug - report this issue on github", "critical")
   }
   return(font_size)
+}
+
+calc_shape_size = function(phylo, page_size, k = 0.01) {
+  if (class(phylo) == "treedata") {
+    ntaxa = phylo@phylo$Nnode
+  }
+  if (class(phylo) == "phylo") {
+    ntaxa = phylo$Nnode
+  } else {
+    logger("Unable to get num of tips in input tree. Check tree type is nwk or nhx", "critical")
+    quit(status = 1)
+  }
+  min_size = 0.1
+  max_size = 3
+  width = page_size[1]
+  height = page_size[2]
+
+  area = width * height
+  size = k * (area / ntaxa)
+  return(max(min_size, min(size, max_size)))
 }
 
 calc_offset = function(phylo, page_size) {
@@ -376,13 +396,12 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
   return(tplot)
 }
 
-builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, text_size) {
+builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
-
   tplot = tplot +
     new_scale_color() +
     geom_tippoint(
-      size = text_size * 2,
+      size = shape_size,
       stroke = 0.2,
       aes(
         fill = !!sym(fill_by),
@@ -401,7 +420,7 @@ builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, text
     guides(
       fill = guide_legend(
         override.aes = list(
-          size = text_size * 1.5,
+          size = 5,
           label = "",
           shape = c(names(unique(ushapes)), 21) # for NA values that might be introduced
         )
@@ -441,7 +460,18 @@ builder_bootstrap = function(tplot, format, size) {
   return(tplot)
 }
 
-master_builder = function(phylo, meta, args, ucolor, ushape, ushape_color, taxa_size, taxa_offset, tree_format) {
+master_builder = function(
+  phylo,
+  meta,
+  args,
+  ucolor,
+  ushape,
+  ushape_color,
+  taxa_size,
+  shape_size,
+  taxa_offset,
+  tree_format
+) {
   tplot = ggtree(tree, size = 0.1) %<+% meta
 
   tplot = builder_tiplab(
@@ -459,9 +489,10 @@ master_builder = function(phylo, meta, args, ucolor, ushape, ushape_color, taxa_
       fill_by = arguments$`shape-by`,
       ushape_cols = ushape_color,
       ushapes = ushape,
-      text_size = taxa_size
+      shape_size = shape_size
     )
   }
+
   if (isTRUE(arguments$bootstrap)) {
     tplot = builder_bootstrap(
       tplot = tplot,
@@ -470,22 +501,28 @@ master_builder = function(phylo, meta, args, ucolor, ushape, ushape_color, taxa_
     )
   }
 
-  # # mutations on branches
-  # nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
-
-  # tplot = tplot +
-  #   geom_text(
-  #     aes(x = branch, label = aa_muts),
-  #     size = text_size - 0.5,
-  #     nudge_y = nudge
-  #   )
+  tplot = tplot +
+    theme(
+      legend.position = c(0.1, 0.85),
+      legend.key.size = unit(5, "mm"),
+      legend.background = element_blank(),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.spacing.x = unit(0, "mm"),
+      legend.spacing.y = unit(0, "mm"),
+      legend.text = element_text(size = 12),
+      legend.title = element_text(size = 15),
+      plot.title = element_text(hjust = 0.06, vjust = -15, size = 20),
+      plot.subtitle = element_text(hjust = 0.02, vjust = -12, size = 20)
+    )
 
   # Fix tip label clipping
-  # plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
+  plot_dim_x = ggplot_build(tplot)$layout$panel_scales_x[[1]]$range$range[2]
+  tplot = tplot +
+    coord_cartesian(clip = "off", expand = FALSE) +
+    xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
 
-  # tplot = tplot +
-  #   coord_cartesian(clip = "off", expand = FALSE) +
-  #   xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
+  # # mutations on branches
+  # nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
 
   # # add clades
   # if (check_empty(arguments$`clades-file`)) {
@@ -558,8 +595,14 @@ option_list = list(
     default = "A4p"
   ),
   make_option(
-    c("-f", "--font-size"),
-    help = "Optional: Specify the taxa labels font size. Set to 0 to turn off taxa labels. Treeme will try to auto calculate the best font size for you.",
+    c("--taxa-font-size"),
+    help = "Optional: Specify the taxa labels font size. Set to 0 to turn off taxa labels. Treeme will try to calculate the best value.",
+    action = "store",
+    type = "numeric"
+  ),
+  make_option(
+    c("--tippoint-shape-size"),
+    help = "Optional: Specify the shape size. Set to 0 to turn off tippoint shapes. Treeme will try to calculate the best value.",
     action = "store",
     type = "numeric"
   )
@@ -651,22 +694,33 @@ if (check_empty(arguments$clade_var)) {
 check_taxa_names(tree, metadata[, 1])
 output_size = get_page_size(arguments$`paper-size`)
 
-# set the tip lab size
-if (check_empty(arguments$`font-size`)) {
-  if (arguments$`font-size` == 0) {
-    taxa_text_size = 0
+# set the taxa label size
+if (check_empty(arguments$`taxa-font-size`)) {
+  if (arguments$`taxa-font-size` == 0) {
+    size_taxa_labal = 0
   } else {
-    taxa_text_size = arguments$`font-size`
+    size_taxa_labal = arguments$`taxa-font-size`
   }
 } else {
-  taxa_text_size = calc_text_size(phylo = tree, page_size = output_size)
+  size_taxa_labal = calc_taxa_label_size(phylo = tree, page_size = output_size)
 }
 
-text_size = calc_text_size(phylo = tree, page_size = output_size)
+# set the tippoint shape size
+if (check_empty(arguments$`tippoint-shape-size`)) {
+  if (arguments$`tippoint-shape-size` == 0) {
+    tippoint_size = 0
+  } else {
+    tippoint_size = arguments$`tippoint-shape-size`
+  }
+} else {
+  tippoint_size = calc_shape_size(phylo = tree, page_size = output_size)
+}
+
 taxa_offset = calc_offset(phylo = tree, page_size = output_size)
 
 logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
-logger(paste0("Using font size: ", round(taxa_text_size, 3)))
+logger(paste0("Using font size: ", round(size_taxa_labal, 3)))
+logger(paste0("Using shape size: ", round(tippoint_size, 3)))
 
 ##############################################
 ################ Tree plotting ###############
@@ -680,24 +734,13 @@ tplot = master_builder(
   ushape = ushape_map,
   ushape_color = ushape_col_map,
   taxa_offset = taxa_offset,
-  taxa_size = taxa_text_size,
+  taxa_size = size_taxa_labal,
+  shape_size = tippoint_size,
   tree_format = tree_format
 )
 
-tplot = tplot +
-  theme(
-    legend.position = c(0.1, 0.85),
-    legend.key.size = unit(text_size, "mm"),
-    legend.background = element_blank(),
-    legend.margin = margin(0, 0, 0, 0),
-    legend.spacing.x = unit(0, "mm"),
-    legend.spacing.y = unit(0, "mm"),
-    legend.text = element_text(size = 12),
-    legend.title = element_text(size = 15),
-    plot.title = element_text(hjust = 0.06, vjust = -15, size = 20),
-    plot.subtitle = element_text(hjust = 0.02, vjust = -12, size = 20)
-  )
 
+logger(paste0("Plotting Complete. Saving plot to ", arguments$output), "info")
 ggsave(
   filename = basename(arguments$output),
   path = dirname(arguments$output),
@@ -707,6 +750,7 @@ ggsave(
   height = output_size[2],
   units = "mm"
 )
+logger("---- All done. I hope it was a pleasent experience -----", "info", TRUE)
 
 # output to svg. this is done to perserve text objects that seem to fail in inkscape
 # current issue is that the font is not registered with svglite. this needs to be done with
