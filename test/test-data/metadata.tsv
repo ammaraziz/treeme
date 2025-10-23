@@ -1,4 +1,4 @@
-sampleid	state	month	shape	shape_color	taxa_color
-alpha	qld	jan	23	#f03b20	#0A0AEF
-beta	vic	mar	22	#A63F03	#9e3900
-kappa	nsw	aug	21	#F2B705	#26A509
+sampleid	state	month	shape	shape_color	taxa_color	travel	genotype	genotype_color	travel_color
+alpha	qld	jan	23	#f03b20	#0A0AEF	Yes	G1	orange	green
+beta	vic	mar	22	#A63F03	#9e3900	No	G1	orange	red
+kappa	nsw	aug	21	#F2B705	#26A509	No	G3	blue	red

@@ -363,7 +363,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
   if (!is.null(color_var)) {
     logger(paste0("Adding geom_tiplab, coloring by ", color_var), "info")
     tplot = tplot +
-      new_scale_color() +
+      #new_scale_color() +
       geom_tiplab(
         aes(color = !!sym(color_var)),
         size = taxa_size,
@@ -399,7 +399,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
 builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
   tplot = tplot +
-    new_scale_color() +
+    #new_scale_color() +
     geom_tippoint(
       size = shape_size,
       stroke = 0.2,
@@ -444,7 +444,7 @@ builder_bootstrap = function(tplot, format, size) {
     bootstrap_label = "label"
   } else {
     logger(paste0("Plotting bootstrap values are not implemented for tree format: ", bootstrap_label), "warning")
-    quit(1)
+    quit(status = 1)
   }
 
   tplot = tplot +
@@ -458,6 +458,20 @@ builder_bootstrap = function(tplot, format, size) {
       vjust = -0.3
     )
   return(tplot)
+}
+
+builder_heatmap = function(tplot, meta, tstart, tend, ufills, offset) {
+  logger("Adding heatmap to phylotree", "info")
+  #tplot = tplot + new_scale_fill()
+  tdata = meta[, c(tstart, tend)]
+  rownames(tdata) = meta[, 1]
+
+  # tplot = gheatmap(p = tplot, data = table, offset = offset, colnames = FALSE, legend_title = "") +
+  #   scale_x_ggtree() +
+  #   scale_y_continuous(expand = c(0, 0.3)) +
+  #   scale_fill_manual()
+
+  return(ggtree::gheatmap(tplot, tdata))
 }
 
 master_builder = function(
@@ -499,6 +513,10 @@ master_builder = function(
       format = tree_format,
       size = taxa_size
     )
+  }
+
+  if (!anyNA(ufill_map)) {
+    tplot = builder_heatmap(tplot = tplot, meta = meta, offset = 0.01, tstart = tstart, tend = tend)
   }
 
   tplot = tplot +
@@ -567,6 +585,18 @@ option_list = list(
   make_option(
     c("-s", "--shape-by"),
     help = "Optional: Column name in metafile to control the shape of tip points. If not provided, tips are blank (no shape).",
+    action = "store",
+    type = "character"
+  ),
+  make_option(
+    c("-v", "--heatmap-value-range"),
+    help = "Optional: Specify the columns in the metadata containing the VALUES for plotting the heatmap. Format required: 'X:Y'.",
+    action = "store",
+    type = "character"
+  ),
+  make_option(
+    c("-f", "--heatmap-fill-range"),
+    help = "Optional: Specify the columns in the metadata containing the FILLS for plotting the heatmap.  Format required: 'X:Y'",
     action = "store",
     type = "character"
   ),
@@ -672,10 +702,37 @@ if (check_empty(arguments$`color-by`)) {
     check_var_in_meta(metadata, arguments$`color-by`)
   } else {
     logger("Column 'taxa_color' is needed due to the flag --color-by", "critical")
-    quit()
+    quit(status = 1)
   }
 
   ucolor_map = setNames(metadata$taxa_color, metadata[, arguments$`color-by`])
+}
+
+# heatmap
+heatmap_args = sum(check_empty(arguments$`heatmap-fill-range`), check_empty(arguments$`heatmap-value-range`))
+if (heatmap_args == 2) {
+  heatmap_fill_range = as.numeric(unlist(strsplit(x = arguments$`heatmap-fill-range`, split = ":")))
+  if ((length(heatmap_fill_range) != 2) & any(is.numeric(heatmap_fill_range))) {
+    logger("Can not parse the heatmap fill range. It must be in this format: X:Y eg 5:7 (inclusive)", "critical")
+    quit(status = 1)
+  }
+
+  heatmap_value_range = as.numeric(unlist(strsplit(x = arguments$`heatmap-value-range`, split = ":")))
+  if ((length(heatmap_value_range) != 2) & any(is.numeric(heatmap_value_range))) {
+    logger("Can not parse the heatmap category range. It must be in this format: X:Y eg 5:7 (inclusive)", "critical")
+    quit(status = 1)
+  }
+
+  tstart = heatmap_value_range[1]
+  tend = heatmap_value_range[2]
+  fstart = heatmap_fill_range[1]
+  fend = heatmap_fill_range[2]
+  ufill_map = setNames(c(metadata[, fstart], metadata[, fend]), c(metadata[, tstart], metadata[, tend]))
+} else if (heatmap_args == 1) {
+  ufill_map = NA
+} else {
+  logger("Both --heatmap-value-range and --heatmap-fill-range are required.", "critical")
+  quit(status = 1)
 }
 
 # shapes
