@@ -115,4 +115,15 @@ global_setup
     [[ -s "${OUTPUT_BASE}/test12_bootstrap.pdf" ]] 
 }
 
+@test "Test 13: heatmap - Success" {
+    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test13_heatmap.pdf" \
+    --heatmap-value-range "7:8" --heatmap-fill-range "9:10"
+
+    [[ $status -eq 0 ]]
+    [[ -f "${OUTPUT_BASE}/test13_heatmap.pdf" ]]
+    [[ -s "${OUTPUT_BASE}/test13_heatmap.pdf" ]] 
+}
+
+
+
 #global_teardown
