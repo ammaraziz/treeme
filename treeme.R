@@ -644,7 +644,7 @@ parser = OptionParser(
     "All subsequent columns are optional - except those specified with --color-by and --shape-by arguments.",
     "\n",
     "Common Issues and solutions:",
-    "\t- Text is squished together; Increase output side from A4 to A3.",
+    "\t- Text is squished together; Increase output size from A4 to A3.",
     "\t- A warning appears about taxa/metafile labels; open the tree file in a text editor and check the label names. These much match exactly, no spaces, no underscores."
   ),
   option_list = option_list,
