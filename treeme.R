@@ -701,7 +701,7 @@ if (check_empty(arguments$`color-by`)) {
   if (!is.null(metadata$taxa_color)) {
     check_var_in_meta(metadata, arguments$`color-by`)
   } else {
-    logger("Column 'taxa_color' is needed due to the flag --color-by", "critical")
+    logger("Column 'taxa_color' is needed if flag '--color-by' is specified", "critical")
     quit(status = 1)
   }
 
