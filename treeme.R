@@ -691,7 +691,7 @@ if (interactive()) {
 #########################################
 ############# Input checks ##############
 #########################################
-print_inputs((arguments))
+print_inputs(arguments)
 
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
