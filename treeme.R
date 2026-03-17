@@ -729,10 +729,10 @@ if (heatmap_args == 2) {
   fend = heatmap_fill_range[2]
   ufill_map = setNames(c(metadata[, fstart], metadata[, fend]), c(metadata[, tstart], metadata[, tend]))
 } else if (heatmap_args == 1) {
-  ufill_map = NA
-} else {
   logger("Both --heatmap-value-range and --heatmap-fill-range are required.", "critical")
   quit(status = 1)
+} else {
+  ufill_map = NA
 }
 
 # shapes
