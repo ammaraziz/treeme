@@ -18,14 +18,14 @@ global_teardown() {
 global_setup
 
 @test "Test 1: missing argument - Failure" {
-    run treeme.R -t $TREE_BASIC -o $OUTPUT_FAILED
+    run ./treeme.R -t $TREE_BASIC -o $OUTPUT_FAILED
 
     [[ $status -eq 1 ]]
     [[ "$output" =~ "Missing arguments: --meta" ]] # =~ is bats-core for "contains"
 }
 
 @test "Test 2: basic test - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test2_basic.pdf"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test2_basic.pdf"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test2_basic.pdf" ]]
@@ -33,7 +33,7 @@ global_setup
 }
 
 @test "Test 3: basic tree with no labels - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test3_nolabs.pdf" --taxa-font-size 0
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test3_nolabs.pdf" --taxa-font-size 0
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test3_nolabs.pdf" ]]
@@ -41,7 +41,7 @@ global_setup
 }
 
 @test "Test 4: color taxa - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" -c "month"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" -c "month"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test4_colortaxa.pdf" ]]
@@ -49,14 +49,14 @@ global_setup
 }
 
 @test "Test 5: color taxa - Failure" {
-    run treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -c "NotReal"
+    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -c "NotReal"
 
     [[ "$status" -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]] # =~ is bats-core for "contains"
 }
 
 @test "Test 6: tree with tippoint - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" \
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" \
     -s "state"
 
     [[ "$status" -eq 0 ]]
@@ -65,14 +65,14 @@ global_setup
 }
 
 @test "Test 7: tippoint missing shape-var - Failure" {
-    run treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -s "NotReal"
+    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -s "NotReal"
 
     [[ "$status" -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]]
 }
 
 @test "Test 8: colors and shape input - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" \
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" \
     -c "month" -s "state"
 
     [[ "$status" -eq 0 ]]
@@ -81,7 +81,7 @@ global_setup
 }
 
 @test "Test 9: basic tree with no labels, has colors and shapes - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
     --taxa-font-size 0 -c "month" -s "state"
 
     [[ $status -eq 0 ]]
@@ -90,7 +90,7 @@ global_setup
 }
 
 @test "Test 10: big tree; no taxa with shapes - Failed" {
-    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/failed.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/failed.pdf" \
     --taxa-font-size 0 -c "month" -s "state"
 
     [[ $status -eq 1 ]]
@@ -98,7 +98,7 @@ global_setup
 }
 
 @test "Test 11: big tree; no taxa with shapes - Success" {
-    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
     --taxa-font-size 0 -s "state"
 
     [[ $status -eq 0 ]]
@@ -107,7 +107,7 @@ global_setup
 }
 
 @test "Test 12: big tree; branch labels - Success" {
-    run treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test12_bootstrap.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test12_bootstrap.pdf" \
     --bootstrap
 
     [[ $status -eq 0 ]]
@@ -116,7 +116,7 @@ global_setup
 }
 
 @test "Test 13: heatmap - Success" {
-    run treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test13_heatmap.pdf" \
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test13_heatmap.pdf" \
     --heatmap-value-range "7:8" --heatmap-fill-range "9:10"
 
     [[ $status -eq 0 ]]
