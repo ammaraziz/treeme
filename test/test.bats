@@ -1,12 +1,10 @@
 #!/usr/bin/env bats
 
 global_setup() {
-    TREE_BASIC="test/test-data/test.nwk"
-    TREE_BOOT="test/test-data/boot.nwk"
-    TREE_NEXUS="test/test-data/test.nexus"
-    TREE_NHX="test/test-data/test.nhx"
-    META="test/test-data/metadata.tsv"
-    META_BOOT="test/test-data/metadata.boot.tsv"
+    TREE_BASIC="test/test-data/test.10.nwk"
+    TREE_BOOT="test/test-data/test.10.nwk"
+    TREE_NEXUS="test/test-data/test.10.nexus"
+    META="test/test-data/test.10.tsv"
     OUTPUT_BASE="test/test-data/output/"
     OUTPUT_FAILED="test/test-data/output/fail.pdf"
 }
@@ -90,7 +88,7 @@ global_setup
 }
 
 @test "Test 10: big tree; no taxa with shapes - Failed" {
-    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/failed.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/failed.pdf" \
     --taxa-font-size 0 -c "month" -s "state"
 
     [[ $status -eq 1 ]]
@@ -98,7 +96,7 @@ global_setup
 }
 
 @test "Test 11: big tree; no taxa with shapes - Success" {
-    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
     --taxa-font-size 0 -s "state"
 
     [[ $status -eq 0 ]]
@@ -107,7 +105,7 @@ global_setup
 }
 
 @test "Test 12: big tree; branch labels - Success" {
-    run ./treeme.R -t $TREE_BOOT -m $META_BOOT -o "${OUTPUT_BASE}/test12_bootstrap.pdf" \
+    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test12_bootstrap.pdf" \
     --bootstrap
 
     [[ $status -eq 0 ]]
