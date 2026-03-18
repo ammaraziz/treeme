@@ -1,4 +1,7 @@
 #!/usr/bin/env Rscript
+
+version = "0.0.1"
+
 options(warn = -1)
 rlang::global_handle()
 
@@ -15,6 +18,37 @@ suppressPackageStartupMessages(
 ###############################
 ########## Functions ##########
 ###############################
+start_message = paste0("Treeme.R - v", version, " Ammar Aziz \n")
+
+check_empty = function(var) {
+  if (is.null(var)) {
+    return(FALSE)
+  }
+  if (is.character(var) && var == '') {
+    return(FALSE)
+  }
+  if (length(var) > 0 & !is.null(var)) {
+    return(TRUE)
+  } else {
+    logger(
+      "What the hell did you pass to? This is a bug, go to github and submit an issue",
+      "critical"
+    )
+  }
+}
+
+print_inputs = function(arguments) {
+  logger("Input arguments:" ,simple = TRUE)
+  arg_names = names(arguments)
+  for (n in seq_along(arg_names)) {
+    if (check_empty(arguments[n]) & !(arg_names[n] == "help")) {
+      message = paste0("--", arg_names[n], ": ", arguments[n])
+      logger(message, "info", TRUE)
+    }
+  }
+  logger(" ", simple = TRUE)
+
+}
 
 logger = function(text, level = "info", simple = FALSE) {
   start = format(Sys.time(), "%H:%M:%S")
@@ -31,6 +65,7 @@ logger = function(text, level = "info", simple = FALSE) {
   )
   levels = c(
     info = codes[["blue"]],
+    success = codes[["green"]],
     warning = codes[["yellow"]],
     critical = codes[["red"]]
   )
@@ -162,7 +197,7 @@ tree_title = function(title) {
 }
 
 ###############################################
-########### Functions for Tree ################
+########### Tree helper functions #############
 ###############################################
 
 calc_taxa_label_size = function(phylo, page_size, type = "logistic") {
@@ -329,34 +364,6 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
     #   create_clade
     # )
   )
-}
-
-check_empty = function(var) {
-  if (is.null(var)) {
-    return(FALSE)
-  }
-  if (is.character(var) && var == '') {
-    return(FALSE)
-  }
-  if (length(var) > 0 & !is.null(var)) {
-    return(TRUE)
-  } else {
-    logger(
-      "What the hell did you pass to? This is a bug, go to github and submit an issue",
-      "critical"
-    )
-  }
-}
-
-print_inputs = function(arguments) {
-  logger("CLI Inputs:", simple = TRUE)
-  arg_names = names(arguments)
-  for (n in seq_along(arg_names)) {
-    if (check_empty(arguments[n]) & !(arg_names[n] == "help")) {
-      message = paste0("  ", arg_names[n], ": ", arguments[n])
-      logger(message, "info", TRUE)
-    }
-  }
 }
 
 builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
@@ -539,17 +546,11 @@ master_builder = function(
     coord_cartesian(clip = "off", expand = FALSE) +
     xlim(NA, ((0.40 * plot_dim_x) + plot_dim_x))
 
-  # # mutations on branches
-  # nudge = ggplot_build(tplot)$layout$panel_scales_y[[1]]$range$range[1] / 3
-
-  # # add clades
-  # if (check_empty(arguments$`clades-file`)) {
-  #   treeplot = treeplot + add_clades(cladesFile, tree@data, plot_dim_x)
-  # }
   return(tplot)
 }
 
 create_umaps = function() {}
+
 #########################################
 ############# CLI Parser ################
 #########################################
@@ -691,6 +692,7 @@ if (interactive()) {
 #########################################
 ############# Input checks ##############
 #########################################
+logger(start_message, "success", simple=TRUE)
 print_inputs(arguments)
 
 tree = reader(arguments$tree, "tree")
@@ -775,7 +777,6 @@ if (check_empty(arguments$`tippoint-shape-size`)) {
 
 taxa_offset = calc_offset(phylo = tree, page_size = output_size)
 
-logger("----- All Checks Okay - Plotting tree -----", "info", TRUE)
 logger(paste0("Using font size: ", round(size_taxa_labal, 3)))
 logger(paste0("Using shape size: ", round(tippoint_size, 3)))
 
@@ -796,8 +797,8 @@ tplot = master_builder(
   tree_format = tree_format
 )
 
+logger(paste0("Saving plot to ", arguments$output), "info")
 
-logger(paste0("Plotting Complete. Saving plot to ", arguments$output), "info")
 ggsave(
   filename = basename(arguments$output),
   path = dirname(arguments$output),
@@ -807,7 +808,7 @@ ggsave(
   height = output_size[2],
   units = "mm"
 )
-logger("---- All done. I hope it was a pleasent experience -----", "info", TRUE)
+logger("---- Processing complete. I hope it was a pleasent experience -----", "success", TRUE)
 
 # output to svg. this is done to perserve text objects that seem to fail in inkscape
 # current issue is that the font is not registered with svglite. this needs to be done with
