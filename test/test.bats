@@ -39,7 +39,7 @@ global_setup
 }
 
 @test "Test 4: color taxa - Success" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" -c "month"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" -c "epicluster"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test4_colortaxa.pdf" ]]
@@ -71,7 +71,7 @@ global_setup
 
 @test "Test 8: colors and shape input - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" \
-    -c "month" -s "state"
+    -c "epicluster" -s "state"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" ]]
@@ -122,6 +122,4 @@ global_setup
     [[ -s "${OUTPUT_BASE}/test13_heatmap.pdf" ]] 
 }
 
-
-
-#global_teardown
+global_teardown
