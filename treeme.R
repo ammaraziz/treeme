@@ -18,7 +18,7 @@ suppressPackageStartupMessages(
 ###############################
 ########## Functions ##########
 ###############################
-start_message = paste0("Treeme.R v", version, " Ammar Aziz \n")
+start_message = paste0("Treeme.R - v", version, " Ammar Aziz \n")
 
 is_var_empty = function(var) {
   # returns TRUE if the input is empty string, null
@@ -701,21 +701,21 @@ tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
 # set taxa label colors
-if (!is_var_empty(arguments[["color-by"]])) {
-  if (arguments[["color-by"]] %in% colnames(metadata)) {
+if (!is_var_empty(arguments$`color-by`)) {
+  if (arguments$`color-by` %in% colnames(metadata)) {
     # check if a column called X_col exists
-    colors_col_name = paste0(arguments[["color-by"]], "_col")
+    colors_col_name = paste0(arguments$`color-by`, "_col")
     if (colors_col_name %in% colnames(metadata)) {
-      ucolor_map = setNames(metadata$`colors_col_name`, metadata[, arguments[["color-by"]]])
+      ucolor_map = setNames(metadata[, colors_col_name], metadata[, arguments$`color-by`])
     } else {
       # set to viridis colors
       ucolor_map = setNames(
-        viridis(length(metadata[, arguments[["color-by"]]]), option = "D"), 
-        unique(metadata[, arguments[["color-by"]]])
+        viridis(length(metadata[, arguments$`color-by`]), option = "D"), 
+        unique(metadata[, arguments$`color-by`])
         )
     }
   } else {
-    logger(paste0("The column '", arguments["color-by"] ,"' specified by `--color-by` does not exist in metafile"), "critical")
+    logger(paste0("The column ", arguments["color-by"] ," specified by `--color-by` does not exist in metafile"), "critical")
     quit(status = 1)
   }
 } else {
