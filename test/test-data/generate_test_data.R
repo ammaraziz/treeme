@@ -16,9 +16,6 @@ generate <- function(n_taxa, seed = 6868) {
   }
   tree = add_random_bootstrap(tree = raw_tree)
 
-  # Ensure tip labels are consistent
-  # tree$tip.label <- paste0("t", 1:n_taxa)
-
   metadata <- data.frame(
     taxon = tree$tip.label,
     country = sample(c("USA", "UK", "Germany", "France", "Japan", "Australia", 
