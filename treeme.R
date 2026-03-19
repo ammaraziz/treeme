@@ -406,7 +406,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
   return(tplot)
 }
 
-builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, shape_size) {
+builder_tippoint = function(tplot, shape_by, fill_by, ushape_cols, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
   tplot = tplot +
     #new_scale_color() +
@@ -420,13 +420,14 @@ builder_tippoint = function(tplot, shape_by, fill_by, ushapes, ushape_cols, shap
     ) +
     scale_fill_manual(
       fill_by,
-      values = ushape_cols, #ushape_col_map,
+      values = ushape_cols,
       na.value = "grey50"
     ) +
-    scale_shape_manual(
-      "Disabled",
-      values = ushapes, #ushape_map
-    ) +
+    # currently custom shapes are not implemented
+    # scale_shape_manual(
+    #   "Disabled",
+    #   values = ushapes,
+    # ) +
     guides(
       fill = guide_legend(
         override.aes = list(
