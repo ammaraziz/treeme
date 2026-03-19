@@ -8,7 +8,7 @@ rlang::global_handle()
 suppressPackageStartupMessages(
   invisible(
     lapply(
-      c("ggnewscale", "optparse", "ggtree", "ggplot2", "treeio", "cowplot", "dplyr", "Cairo"),
+      c("ggnewscale", "optparse", "ggtree", "ggplot2", "treeio", "cowplot", "dplyr", "Cairo", "viridisLite"),
       require,
       character.only = TRUE
     )
@@ -18,17 +18,19 @@ suppressPackageStartupMessages(
 ###############################
 ########## Functions ##########
 ###############################
-start_message = paste0("Treeme.R - v", version, " Ammar Aziz \n")
+start_message = paste0("Treeme.R v", version, " Ammar Aziz \n")
 
-check_empty = function(var) {
+is_var_empty = function(var) {
+  # returns TRUE if the input is empty string, null
+  
   if (is.null(var)) {
-    return(FALSE)
+    return(TRUE)
   }
   if (is.character(var) && var == '') {
-    return(FALSE)
+    return(TRUE)
   }
   if (length(var) > 0 & !is.null(var)) {
-    return(TRUE)
+    return(FALSE)
   } else {
     logger(
       "What the hell did you pass to? This is a bug, go to github and submit an issue",
@@ -40,8 +42,9 @@ check_empty = function(var) {
 print_inputs = function(arguments) {
   logger("Input arguments:" ,simple = TRUE)
   arg_names = names(arguments)
+
   for (n in seq_along(arg_names)) {
-    if (check_empty(arguments[n]) & !(arg_names[n] == "help")) {
+    if (!is_var_empty(arguments[n]) & !(arg_names[n] == "help")) {
       message = paste0("--", arg_names[n], ": ", arguments[n])
       logger(message, "info", TRUE)
     }
@@ -129,7 +132,7 @@ reader = function(infile, type) {
     error = function(e) {
       logger(
         text = paste0(
-          "Unable to read infile - unknown file type: ",
+          "Unable to read in file - unknown file type: ",
           infile,
           "\n",
           "\t",
@@ -378,7 +381,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
         family = "Arial"
       ) +
       scale_color_manual(
-        values = ucolors, #ucolor_map
+        values = ucolors,
         na.translate = FALSE
       ) +
       guides(
@@ -503,7 +506,7 @@ master_builder = function(
     ucolors = ucolor
   )
 
-  if (check_empty(arguments$`shape-by`)) {
+  if (!is_var_empty(arguments$`shape-by`)) {
     tplot = builder_tippoint(
       tplot = tplot,
       shape_by = arguments$`shape-by`,
@@ -681,10 +684,10 @@ tryCatch(
 # for manual testing
 if (interactive()) {
   arguments = list(
-    metadata = "test/test-data/metadata.boot.tsv",
-    tree = "test/test-data/boot.nwk",
-    # `color-by` = "month",
-    `shape-by` = "state",
+    metadata = "test/test-data/test.10.tsv",
+    tree = "test/test-data/test.10.nwk",
+    `color-by` = "epicluster",
+    `shape-by` = "collection_year",
     `paper-size` = "A3p"
   )
 }
@@ -693,27 +696,42 @@ if (interactive()) {
 ############# Input checks ##############
 #########################################
 logger(start_message, "success", simple=TRUE)
-print_inputs(arguments)
 
 tree = reader(arguments$tree, "tree")
 metadata = reader(arguments$meta, "tsv")
 
-# colors
-if (check_empty(arguments$`color-by`)) {
-  if (!is.null(metadata$taxa_color)) {
-    check_var_in_meta(metadata, arguments$`color-by`)
+# set taxa label colors
+if (!is_var_empty(arguments[["color-by"]])) {
+  if (arguments[["color-by"]] %in% colnames(metadata)) {
+    # check if a column called X_col exists
+    colors_col_name = paste0(arguments[["color-by"]], "_col")
+    if (colors_col_name %in% colnames(metadata)) {
+      ucolor_map = setNames(metadata$`colors_col_name`, metadata[, arguments[["color-by"]]])
+    } else {
+      # set to viridis colors
+      ucolor_map = setNames(
+        viridis(length(metadata[, arguments[["color-by"]]]), option = "D"), 
+        unique(metadata[, arguments[["color-by"]]])
+        )
+    }
   } else {
-    logger("Column 'taxa_color' is needed if flag '--color-by' is specified", "critical")
+    logger(paste0("The column '", arguments["color-by"] ,"' specified by `--color-by` does not exist in metafile"), "critical")
     quit(status = 1)
   }
-
-  ucolor_map = setNames(metadata$taxa_color, metadata[, arguments$`color-by`])
+} else {
+  # here we set ucolor_map to empty vector
+  # which results in default color (black)
+  ucolor_map = c()
 }
 
 # heatmap
-heatmap_args = sum(check_empty(arguments$`heatmap-fill-range`), check_empty(arguments$`heatmap-value-range`))
+heatmap_args = sum(!is_var_empty(arguments$`heatmap-fill-range`), !is_var_empty(arguments$`heatmap-value-range`))
 if (heatmap_args == 2) {
-  heatmap_fill_range = as.numeric(unlist(strsplit(x = arguments$`heatmap-fill-range`, split = ":")))
+  heatmap_fill_range = as.numeric(
+    unlist(
+      strsplit(x = arguments$`heatmap-fill-range`, split = ":")
+      )
+    )
   if ((length(heatmap_fill_range) != 2) & any(is.numeric(heatmap_fill_range))) {
     logger("Can not parse the heatmap fill range. It must be in this format: X:Y eg 5:7 (inclusive)", "critical")
     quit(status = 1)
@@ -724,7 +742,6 @@ if (heatmap_args == 2) {
     logger("Can not parse the heatmap category range. It must be in this format: X:Y eg 5:7 (inclusive)", "critical")
     quit(status = 1)
   }
-
   tstart = heatmap_value_range[1]
   tend = heatmap_value_range[2]
   fstart = heatmap_fill_range[1]
@@ -738,7 +755,7 @@ if (heatmap_args == 2) {
 }
 
 # shapes
-if (check_empty(arguments$`shape-by`)) {
+if (!is_var_empty(arguments$`shape-by`)) {
   check_var_in_meta(metadata, arguments$`shape-by`)
 
   ushape_map = setNames(metadata$shape, metadata[, arguments$`shape-by`])
@@ -746,7 +763,7 @@ if (check_empty(arguments$`shape-by`)) {
 }
 
 # clades file
-if (check_empty(arguments$clade_var)) {
+if (!is_var_empty(arguments$clade_var)) {
   clades = reader(arguments$clade_var, "tsv")
 }
 
@@ -754,7 +771,7 @@ check_taxa_names(tree, metadata[, 1])
 output_size = get_page_size(arguments$`paper-size`)
 
 # set the taxa label size
-if (check_empty(arguments$`taxa-font-size`)) {
+if (!is_var_empty(arguments$`taxa-font-size`)) {
   if (arguments$`taxa-font-size` == 0) {
     size_taxa_labal = 0
   } else {
@@ -765,7 +782,7 @@ if (check_empty(arguments$`taxa-font-size`)) {
 }
 
 # set the tippoint shape size
-if (check_empty(arguments$`tippoint-shape-size`)) {
+if (!is_var_empty(arguments$`tippoint-shape-size`)) {
   if (arguments$`tippoint-shape-size` == 0) {
     tippoint_size = 0
   } else {
