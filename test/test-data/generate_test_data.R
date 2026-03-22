@@ -26,6 +26,7 @@ generate <- function(n_taxa, seed = 6868) {
                                prob = c(0.4, 0.3, 0.2, 0.1)),
     collection_year = sample(2020:2024, n_taxa, replace = TRUE),
     collection_year_col = sample(colors(), n_taxa, replace = TRUE),
+    collection_year_shape = sample(c(21:25), n_taxa, replace = TRUE),
     epicluster = sample(paste0("cluster_", LETTERS[1:8]), n_taxa, replace = TRUE),
     epicluster_col = sample(colors(), n_taxa, replace = TRUE)
   )
