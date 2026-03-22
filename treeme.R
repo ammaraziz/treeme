@@ -406,7 +406,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
   return(tplot)
 }
 
-builder_tippoint = function(tplot, shape_by, fill_by, ushape_cols, shape_size) {
+builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
   tplot = tplot +
     #new_scale_color() +
@@ -414,35 +414,32 @@ builder_tippoint = function(tplot, shape_by, fill_by, ushape_cols, shape_size) {
       size = shape_size,
       stroke = 0.2,
       aes(
-        fill = !!sym(fill_by),
-        shape = !!sym(shape_by)
+        # convert to factor protects against error
+        # "Continuous value supplied to a discrete scale.""
+        fill = as.factor(!!sym(fill_by)), 
+        shape = as.factor(!!sym(shape_by))
       ),
     ) +
     scale_fill_manual(
       fill_by,
-      values = ushape_cols,
+      values = shape_colors,
       na.value = "grey50"
     ) +
-    # currently custom shapes are not implemented
-    # scale_shape_manual(
-    #   "Disabled",
-    #   values = ushapes,
-    # ) +
+    scale_shape_manual(
+      "Disabled",
+      values = shape_maps,
+    ) +
     guides(
       fill = guide_legend(
         override.aes = list(
           size = 5,
           label = "",
-          shape = c(names(unique(ushapes)), 21) # for NA values that might be introduced
+          shape = c(names(unique(shape_maps)), 21) # for NA values that might be introduced
         )
       ),
       shape = "none"
     )
   return(tplot)
-  # } else {
-  #   logger(paste0("No shape specified - skipping tippoints"), "info")
-  #   return(tplot)
-  # }
 }
 
 builder_bootstrap = function(tplot, format, size) {
@@ -490,8 +487,8 @@ master_builder = function(
   meta,
   args,
   ucolor,
-  ushape,
-  ushape_color,
+  p_shape,
+  p_color,
   taxa_size,
   shape_size,
   taxa_offset,
@@ -510,10 +507,10 @@ master_builder = function(
   if (!is_var_empty(arguments$`shape-by`)) {
     tplot = builder_tippoint(
       tplot = tplot,
-      shape_by = arguments$`shape-by`,
       fill_by = arguments$`shape-by`,
-      ushape_cols = ushape_color,
-      ushapes = ushape,
+      shape_by = arguments$`shape-by`,
+      shape_colors = p_color_map,
+      shape_map = p_shape_map,
       shape_size = shape_size
     )
   }
@@ -705,9 +702,9 @@ metadata = reader(arguments$meta, "tsv")
 if (!is_var_empty(arguments$`color-by`)) {
   if (arguments$`color-by` %in% colnames(metadata)) {
     # check if a column called X_col exists
-    colors_col_name = paste0(arguments$`color-by`, "_col")
-    if (colors_col_name %in% colnames(metadata)) {
-      ucolor_map = setNames(metadata[, colors_col_name], metadata[, arguments$`color-by`])
+    taxa_col_name = paste0(arguments$`color-by`, "_col")
+    if (taxa_col_name %in% colnames(metadata)) {
+      ucolor_map = setNames(metadata[, taxa_col_name], metadata[, arguments$`color-by`])
     } else {
       # set to viridis colors
       ucolor_map = setNames(
@@ -755,12 +752,52 @@ if (heatmap_args == 2) {
   ufill_map = NA
 }
 
-# shapes
+# set geom point shape and color
 if (!is_var_empty(arguments$`shape-by`)) {
-  check_var_in_meta(metadata, arguments$`shape-by`)
-
-  ushape_map = setNames(metadata$shape, metadata[, arguments$`shape-by`])
-  ushape_col_map = setNames(metadata$shape_color, metadata[, arguments$`shape-by`])
+  if (arguments$`shape-by` %in% colnames(metadata)) {
+    
+    # geom point shapes
+    p_shape_name = paste0(arguments$`shape-by`, "_shape")
+    if (p_shape_name %in% colnames(metadata)) {
+      p_shape_map = setNames(
+        metadata[, p_shape_name], 
+        metadata[, arguments$`shape-by`]
+        )
+    } else {
+      # set to circle - default
+      p_shape_map = c(
+        sample(c(21), nrow(metadata), replace = TRUE),
+        nrow(metadata)
+      )
+    }
+    # geom point fill
+    p_col_name = paste0(arguments$`shape-by`, "_col")
+    if (p_col_name %in% colnames(metadata)) {
+      p_color_map = setNames(
+        metadata[, p_col_name],
+        metadata[, arguments$`shape-by`]
+        )
+    } else {
+      # set to viridis colors
+      p_color_map = setNames(
+        viridis(nrow(metadata), option = "D"), 
+        unique(metadata[, arguments$`shape-by`])
+        )
+    }
+  } else {
+    logger(paste0("The column ", arguments["shape-by"] ," specified by `--shape-by` does not exist in metafile"), "critical")
+    quit(status = 1)
+  }
+} else {
+  # here we set ucolor_map to black/circle if nothing is specified
+  p_shape_map = c(
+    sample(c(21), nrow(metadata), replace = TRUE),
+    nrow(metadata)
+  )
+  p_color_map = c(
+    sample(c("black"), nrow(metadata), replace = TRUE),
+    nrow(metadata)
+  )
 }
 
 # clades file
@@ -807,8 +844,8 @@ tplot = master_builder(
   meta = metadata,
   args = arguments,
   ucolor = ucolor_map,
-  ushape = ushape_map,
-  ushape_color = ushape_col_map,
+  p_shape = p_shape_map,
+  p_color = p_color_map,
   taxa_offset = taxa_offset,
   taxa_size = size_taxa_labal,
   shape_size = tippoint_size,
