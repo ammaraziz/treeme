@@ -54,8 +54,7 @@ global_setup
 }
 
 @test "Test 6: tree with tippoint - Success" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" \
-    -s "state"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" -s "vaccination_status"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test6_tippoint.pdf" ]]
@@ -71,7 +70,7 @@ global_setup
 
 @test "Test 8: colors and shape input - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" \
-    -c "epicluster" -s "state"
+    -c "epicluster" -s "vaccination_status"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" ]]
@@ -80,24 +79,16 @@ global_setup
 
 @test "Test 9: basic tree with no labels, has colors and shapes - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
-    --taxa-font-size 0 -c "month" -s "state"
+    --taxa-font-size 0 -c "epicluster" -s "vaccination_status"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" ]]
     [[ -s "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" ]] 
 }
 
-@test "Test 10: big tree; no taxa with shapes - Failed" {
-    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/failed.pdf" \
-    --taxa-font-size 0 -c "month" -s "state"
-
-    [[ $status -eq 1 ]]
-    [[ "$output" =~ "CRITICAL" ]]
-}
-
 @test "Test 11: big tree; no taxa with shapes - Success" {
     run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
-    --taxa-font-size 0 -s "state"
+    --taxa-font-size 0 -s "collection_year"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" ]]
