@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 version = "0.0.1"
-
+set.seed(1987)
 options(warn = -1)
 rlang::global_handle()
 
@@ -434,7 +434,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
         override.aes = list(
           size = 5,
           label = "",
-          shape = c(names(unique(shape_maps)), 21)
+          shape = unname(shape_maps)
         )
       ),
       shape = "none"
@@ -769,7 +769,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     } else {
       # set to circle - default when no shape column is specified
       p_shape_map = setNames(
-        sample(c(15:25), nrow(metadata)),
+        sample(c(15:25), length(unique(metadata[, arguments$`shape-by`]))),
         unique(metadata[, arguments$`shape-by`])
         )
     }
