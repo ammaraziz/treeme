@@ -486,7 +486,7 @@ master_builder = function(
   phylo,
   meta,
   args,
-  ucolor,
+  t_color,
   p_shape,
   p_color,
   taxa_size,
@@ -494,14 +494,14 @@ master_builder = function(
   taxa_offset,
   tree_format
 ) {
-  tplot = ggtree(tree, size = 0.1) %<+% meta
+  tplot = ggtree(tree, linewidth = 0.1) %<+% meta
 
   tplot = builder_tiplab(
     tplot = tplot,
     color_var = arguments$`color-by`,
     taxa_size = taxa_size,
     offset = taxa_offset,
-    ucolors = ucolor
+    ucolors = t_color
   )
 
   if (!is_var_empty(arguments$`shape-by`)) {
@@ -509,8 +509,8 @@ master_builder = function(
       tplot = tplot,
       fill_by = arguments$`shape-by`,
       shape_by = arguments$`shape-by`,
-      shape_colors = p_color_map,
-      shape_map = p_shape_map,
+      shape_colors = p_color,
+      shape_map = p_shape,
       shape_size = shape_size
     )
   }
@@ -759,7 +759,7 @@ if (heatmap_args == 2) {
 if (!is_var_empty(arguments$`shape-by`)) {
   if (arguments$`shape-by` %in% colnames(metadata)) {
     
-    # geom point shapes
+    # shapes
     p_shape_name = paste0(arguments$`shape-by`, "_shape")
     if (p_shape_name %in% colnames(metadata)) {
       p_shape_map = setNames(
@@ -767,13 +767,13 @@ if (!is_var_empty(arguments$`shape-by`)) {
         metadata[, arguments$`shape-by`]
         )
     } else {
-      # set to circle - default
-      p_shape_map = c(
-        sample(c(21), nrow(metadata), replace = TRUE),
-        nrow(metadata)
-      )
+      # set to circle - default when no shape column is specified
+      p_shape_map = setNames(
+        sample(21, nrow(metadata), replace = TRUE),
+        metadata[, arguments$`shape-by`]
+        )
     }
-    # geom point fill
+    # fill
     p_col_name = paste0(arguments$`shape-by`, "_col")
     if (p_col_name %in% colnames(metadata)) {
       p_color_map = setNames(
@@ -781,9 +781,9 @@ if (!is_var_empty(arguments$`shape-by`)) {
         metadata[, arguments$`shape-by`]
         )
     } else {
-      # set to viridis colors
+      #  set to black - default when no _col column is exists
       p_color_map = setNames(
-        viridis(nrow(metadata), option = "D"), 
+        sample(c("black"), nrow(metadata), replace = TRUE),
         unique(metadata[, arguments$`shape-by`])
         )
     }
@@ -846,7 +846,7 @@ tplot = master_builder(
   phylo = tree,
   meta = metadata,
   args = arguments,
-  ucolor = t_color_map,
+  t_color = t_color_map,
   p_shape = p_shape_map,
   p_color = p_color_map,
   taxa_offset = taxa_offset,
