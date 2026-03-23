@@ -77,7 +77,7 @@ global_setup
     [[ -s "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" ]]
 }
 
-@test "Test 9: basic tree with no labels, has colors and shapes - Success" {
+@test "Test 9: basic tree with no labels, shapes + shape colors - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
     --taxa-font-size 0 --color-by "epicluster" --shape-by "vaccination_status"
 
