@@ -434,7 +434,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
         override.aes = list(
           size = 5,
           label = "",
-          shape = c(names(unique(shape_maps)), 21) # for NA values that might be introduced
+          shape = c(names(unique(shape_maps)), 21)
         )
       ),
       shape = "none"
@@ -769,8 +769,8 @@ if (!is_var_empty(arguments$`shape-by`)) {
     } else {
       # set to circle - default when no shape column is specified
       p_shape_map = setNames(
-        rep(c(21), nrow(metadata)),
-        metadata[, arguments$`shape-by`]
+        sample(c(15:25), nrow(metadata)),
+        unique(metadata[, arguments$`shape-by`])
         )
     }
     # fill
