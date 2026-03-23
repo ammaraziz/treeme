@@ -39,7 +39,7 @@ global_setup
 }
 
 @test "Test 4: color taxa - Success" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" -c "epicluster"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test4_colortaxa.pdf" --color-by "epicluster"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test4_colortaxa.pdf" ]]
@@ -47,14 +47,14 @@ global_setup
 }
 
 @test "Test 5: color taxa - Failure" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -c "NotReal"
+    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED --color-by "NotReal"
 
     [[ "$status" -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]] # =~ is bats-core for "contains"
 }
 
 @test "Test 6: tree with tippoint - Success" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" -s "vaccination_status"
+    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test6_tippoint.pdf" --shape-by "vaccination_status"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test6_tippoint.pdf" ]]
@@ -62,7 +62,7 @@ global_setup
 }
 
 @test "Test 7: tippoint missing shape-var - Failure" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED -s "NotReal"
+    run ./treeme.R -t $TREE_BASIC -m $META -o $OUTPUT_FAILED --shape-by "NotReal"
 
     [[ "$status" -eq 1 ]]
     [[ "$output" =~ "CRITICAL" ]]
@@ -70,7 +70,7 @@ global_setup
 
 @test "Test 8: colors and shape input - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" \
-    -c "epicluster" -s "vaccination_status"
+    --color-by "epicluster" --shape-by "vaccination_status"
 
     [[ "$status" -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test8_taxacolorshapes.pdf" ]]
@@ -79,25 +79,24 @@ global_setup
 
 @test "Test 9: basic tree with no labels, has colors and shapes - Success" {
     run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" \
-    --taxa-font-size 0 -c "epicluster" -s "vaccination_status"
+    --taxa-font-size 0 --color-by "epicluster" --shape-by "vaccination_status"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" ]]
     [[ -s "${OUTPUT_BASE}/test9_shapecolor_nolabels.pdf" ]] 
 }
 
-@test "Test 11: big tree; no taxa with shapes - Success" {
+@test "Test 11: no taxa, shapes - Success" {
     run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" \
-    --taxa-font-size 0 -s "collection_year"
+    --taxa-font-size 0 --shape-by "collection_year"
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" ]]
     [[ -s "${OUTPUT_BASE}/test11_big_shapescolors_nolabels.pdf" ]] 
 }
 
-@test "Test 12: big tree; branch labels - Success" {
-    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test12_bootstrap.pdf" \
-    --bootstrap
+@test "Test 12: branch labels - Success" {
+    run ./treeme.R -t $TREE_BOOT -m $META -o "${OUTPUT_BASE}/test12_bootstrap.pdf" --bootstrap
 
     [[ $status -eq 0 ]]
     [[ -f "${OUTPUT_BASE}/test12_bootstrap.pdf" ]]
@@ -113,4 +112,4 @@ global_setup
     [[ -s "${OUTPUT_BASE}/test13_heatmap.pdf" ]] 
 }
 
-global_teardown
+# global_teardown
