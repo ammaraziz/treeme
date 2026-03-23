@@ -415,7 +415,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
       stroke = 0.2,
       aes(
         # convert to factor protects against error
-        # "Continuous value supplied to a discrete scale.""
+        # "Continuous value supplied to a discrete scale."
         fill = as.factor(!!sym(fill_by)), 
         shape = as.factor(!!sym(shape_by))
       ),
@@ -427,7 +427,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
     ) +
     scale_shape_manual(
       "Disabled",
-      values = shape_maps,
+      values = shape_maps
     ) +
     guides(
       fill = guide_legend(
@@ -769,7 +769,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     } else {
       # set to circle - default when no shape column is specified
       p_shape_map = setNames(
-        sample(21, nrow(metadata), replace = TRUE),
+        rep(c(21), nrow(metadata)),
         metadata[, arguments$`shape-by`]
         )
     }
@@ -783,7 +783,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     } else {
       #  set to black - default when no _col column is exists
       p_color_map = setNames(
-        sample(c("black"), nrow(metadata), replace = TRUE),
+        rep(c("black"), nrow(metadata)),
         unique(metadata[, arguments$`shape-by`])
         )
     }
@@ -794,11 +794,11 @@ if (!is_var_empty(arguments$`shape-by`)) {
 } else {
   # here we set ucolor_map to black/circle if nothing is specified
   p_shape_map = c(
-    sample(c(21), nrow(metadata), replace = TRUE),
+    rep(c(21), nrow(metadata)),
     nrow(metadata)
   )
   p_color_map = c(
-    sample(c("black"), nrow(metadata), replace = TRUE),
+    rep(c("black"), nrow(metadata)),
     nrow(metadata)
   )
 }
