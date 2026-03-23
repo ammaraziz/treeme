@@ -763,7 +763,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     p_shape_name = paste0(arguments$`shape-by`, "_shape")
     if (p_shape_name %in% colnames(metadata)) {
       p_shape_map = setNames(
-        metadata[, p_shape_name], 
+        metadata[, p_shape_name],
         metadata[, arguments$`shape-by`]
         )
     } else {
