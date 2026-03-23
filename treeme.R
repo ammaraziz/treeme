@@ -704,10 +704,13 @@ if (!is_var_empty(arguments$`color-by`)) {
     # check if a column called X_col exists
     taxa_col_name = paste0(arguments$`color-by`, "_col")
     if (taxa_col_name %in% colnames(metadata)) {
-      ucolor_map = setNames(metadata[, taxa_col_name], metadata[, arguments$`color-by`])
+      t_color_map = setNames(
+        metadata[, taxa_col_name],
+        metadata[, arguments$`color-by`]
+        )
     } else {
       # set to viridis colors
-      ucolor_map = setNames(
+      t_color_map = setNames(
         viridis(length(metadata[, arguments$`color-by`]), option = "D"), 
         unique(metadata[, arguments$`color-by`])
         )
@@ -717,9 +720,9 @@ if (!is_var_empty(arguments$`color-by`)) {
     quit(status = 1)
   }
 } else {
-  # here we set ucolor_map to empty vector
+  # here we set t_color_map to empty vector
   # which results in default color (black)
-  ucolor_map = c()
+  t_color_map = c()
 }
 
 # heatmap
@@ -843,7 +846,7 @@ tplot = master_builder(
   phylo = tree,
   meta = metadata,
   args = arguments,
-  ucolor = ucolor_map,
+  ucolor = t_color_map,
   p_shape = p_shape_map,
   p_color = p_color_map,
   taxa_offset = taxa_offset,
