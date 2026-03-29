@@ -408,6 +408,7 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
 
 builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
+  print(shape_maps)
   tplot = tplot +
     #new_scale_color() +
     geom_tippoint(
@@ -434,7 +435,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
         override.aes = list(
           size = 5,
           label = "",
-          shape = unname(shape_maps)
+          shape = unname(shape_maps) # issue here
         )
       ),
       shape = "none"
