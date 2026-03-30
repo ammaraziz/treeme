@@ -80,6 +80,49 @@ logger = function(text, level = "info", simple = FALSE) {
   }
 }
 
+check_unique_pair = function(df, col_data, col_value) {
+  # given a dataframe df, check if col_value has multiple values for coL_data
+  # eg for this dataframe, an error is returned to the user:
+    # year  shape
+    # 2020	23
+    # 2020	24 <- cant assign different shape to the same year!
+    # 2021	25
+
+  # this df passes:
+    # 2020	23
+    # 2020	23
+    # 2021	25
+
+  # Check if col_value has multiple values for any single value in col_data
+  # Create a table of unique combinations
+  unique_pairs <- unique(df[, c(col_data, col_value)])
+
+  # Count how many values of col_value exist for each col_data
+  counts <- table(unique_pairs[[col_data]])
+
+  # Find any col_data values with multiple col_value entries
+  problematic <- names(counts[counts > 1])
+
+  if (length(problematic) > 0) {
+    # Build error message with details
+    details <- sapply(problematic, function(x) {
+      vals <- unique_pairs[unique_pairs[[col_data]] == x, col_value]
+      paste0(col_data, " = ", x, ": ",
+             paste(vals, collapse = ", "))
+    })
+
+    logger(
+      paste0("Multiple shape or color values detected for category (column) '",
+            col_data,
+            "'. The color/shape values must be unique per category."),
+      level = "critical"
+      )
+
+    logger(paste(details, collapse = "\n "), level = "warning", simple = T)
+    quit(status = 1)
+  }
+}
+
 read_tree_auto = function(infile) {
   ext = strsplit(infile, ".", fixed = T)[[1]][-1]
   # newick
@@ -408,7 +451,8 @@ builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
 
 builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, shape_size) {
   logger(paste0("Adding tippoint shapes, variable: ", shape_by), "info")
-  print(shape_maps)
+  legend_shapes = factor(unique(unname(shape_maps)))
+  print(legend_shapes)
   tplot = tplot +
     #new_scale_color() +
     geom_tippoint(
@@ -435,7 +479,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
         override.aes = list(
           size = 5,
           label = "",
-          shape = unname(shape_maps) # issue here
+          shape = legend_shapes # issue here
         )
       ),
       shape = "none"
@@ -763,6 +807,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     # shapes
     p_shape_name = paste0(arguments$`shape-by`, "_shape")
     if (p_shape_name %in% colnames(metadata)) {
+      check_unique_pair(df = metadata, col_data = arguments$`shape-by`, p_shape_name)
       p_shape_map = setNames(
         metadata[, p_shape_name],
         metadata[, arguments$`shape-by`]
@@ -777,6 +822,7 @@ if (!is_var_empty(arguments$`shape-by`)) {
     # fill
     p_col_name = paste0(arguments$`shape-by`, "_col")
     if (p_col_name %in% colnames(metadata)) {
+      check_unique_pair(df = metadata, col_data = arguments$`shape-by`, p_col_name)
       p_color_map = setNames(
         metadata[, p_col_name],
         metadata[, arguments$`shape-by`]
