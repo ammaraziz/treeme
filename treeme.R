@@ -8,7 +8,7 @@ rlang::global_handle()
 suppressPackageStartupMessages(
   invisible(
     lapply(
-      c("ggnewscale", "optparse", "ggtree", "ggplot2", "treeio", "cowplot", "dplyr", "Cairo", "viridisLite"),
+      c("ggnewscale", "optparse", "ggtree", "ggplot2", "treeio", "dplyr", "Cairo", "viridisLite"),
       require,
       character.only = TRUE
     )
@@ -414,9 +414,9 @@ add_clades = function(cladesFile, tree_data, plot_dim_x) {
 
 builder_tiplab = function(tplot, taxa_size, offset, ucolors, color_var = NULL) {
   if (!is.null(color_var)) {
-    logger(paste0("Adding geom_tiplab, coloring by ", color_var), "info")
+    logger(paste0("Adding geom_tiplab, coloring by:", color_var), "info")
     tplot = tplot +
-      #new_scale_color() +
+      new_scale_color() +
       geom_tiplab(
         aes(color = !!sym(color_var)),
         size = taxa_size,
@@ -453,7 +453,7 @@ builder_tippoint = function(tplot, fill_by, shape_by, shape_colors, shape_maps, 
   logger(paste0("Adding tippoint shapes: ", shape_by), "info")
   legend_shapes = as.numeric(levels(factor(unname(shape_maps))))
   tplot = tplot +
-    #new_scale_color() +
+    new_scale_color() +
     geom_tippoint(
       size = shape_size,
       stroke = 0.2,

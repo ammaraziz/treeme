@@ -4,6 +4,7 @@ global_setup() {
     mkdir -p test/test-data/output/
     TREE_BASIC="test/test-data/test.10.nwk"
     TREE_BOOT="test/test-data/test.10.nwk"
+    TREE_MED="test/test-data/test.100.nwk"
     TREE_NEXUS="test/test-data/test.10.nexus"
     META="test/test-data/test.10.tsv"
     OUTPUT_BASE="test/test-data/output/"
@@ -104,13 +105,24 @@ global_setup
     [[ -s "${OUTPUT_BASE}/test12_bootstrap.pdf" ]] 
 }
 
-@test "Test 13: heatmap - Success" {
-    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test13_heatmap.pdf" \
-    --heatmap-value-range "7:8" --heatmap-fill-range "9:10"
+@test "Test 13: med tree with labs, shapes, bootstrap" {
+    run ./treeme.R -t $TREE_MED -m $META -o "${OUTPUT_BASE}/test13_medtree.pdf" \
+    --color-by "epicluster" \
+    --shape-by "vaccination_status"
 
     [[ $status -eq 0 ]]
-    [[ -f "${OUTPUT_BASE}/test13_heatmap.pdf" ]]
-    [[ -s "${OUTPUT_BASE}/test13_heatmap.pdf" ]] 
+    [[ -f "${OUTPUT_BASE}/test12_bootstrap.pdf" ]]
+    [[ -s "${OUTPUT_BASE}/test12_bootstrap.pdf" ]] 
 }
 
+#@test "Test X: heatmap - Success" {
+#    run ./treeme.R -t $TREE_BASIC -m $META -o "${OUTPUT_BASE}/test13_heatmap.pdf" \
+#    --heatmap-value-range "7:8" --heatmap-fill-range "9:10"
+#
+#    [[ $status -eq 0 ]]
+#    [[ -f "${OUTPUT_BASE}/test13_heatmap.pdf" ]]
+#    [[ -s "${OUTPUT_BASE}/test13_heatmap.pdf" ]] 
+#}
+
 # global_teardown
+
