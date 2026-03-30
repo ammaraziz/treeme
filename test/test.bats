@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 global_setup() {
+    mkdir -p test/test-data/output/
     TREE_BASIC="test/test-data/test.10.nwk"
     TREE_BOOT="test/test-data/test.10.nwk"
     TREE_NEXUS="test/test-data/test.10.nexus"
